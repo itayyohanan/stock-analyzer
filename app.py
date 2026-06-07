@@ -3,927 +3,2304 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import json, os, time, concurrent.futures
+from datetime import datetime
 
-st.set_page_config(page_title="מנתח מניות", page_icon="📈",
-                   layout="wide", initial_sidebar_state="collapsed")
-
-# ── Palette ────────────────────────────────────────────────────────────────────
-BG    = "#060d1a";  SURF  = "#0c1828";  SURF2 = "#112035";  SURF3 = "#162843"
-BDR   = "#1b3050";  BDR2  = "#24446e"
-CYAN  = "#00b4d8";  CDIM  = "rgba(0,180,216,.12)"
-GRN   = "#22c55e";  GDIM  = "rgba(34,197,94,.10)"
-RED   = "#ef4444";  RDIM  = "rgba(239,68,68,.10)"
-AMB   = "#f59e0b";  ADIM  = "rgba(245,158,11,.10)"
-PUR   = "#a78bfa";  PDIM  = "rgba(167,139,250,.08)"
-TX    = "#e8f4fd";  TX2   = "#6b9bc0";  TX3 = "#3a6080"
+# ══════════════════════════════════════════════════════════════════════════════
+# CONSTANTS
+# ══════════════════════════════════════════════════════════════════════════════
+BG   = "#060d1a"; SURF  = "#0c1828"; SURF2 = "#112035"; SURF3 = "#162843"
+BDR  = "#1b3050"; BDR2  = "#24446e"
+CYAN = "#00b4d8"; GRN   = "#22c55e"; RED   = "#ef4444"
+AMB  = "#f59e0b"; PUR   = "#a78bfa"
+TX   = "#e8f4fd"; TX2   = "#6b9bc0"; TX3   = "#3a6080"
 
 PB = dict(
     plot_bgcolor=SURF, paper_bgcolor=SURF,
     font=dict(color=TX, family="Heebo, sans-serif", size=11),
     xaxis=dict(gridcolor=BDR, zerolinecolor=BDR, tickfont=dict(color=TX2)),
     yaxis=dict(gridcolor=BDR, zerolinecolor=BDR, tickfont=dict(color=TX2)),
-    legend=dict(bgcolor="rgba(0,0,0,0)", borderwidth=0, orientation="h",
-                yanchor="bottom", y=1.02, xanchor="right", x=1),
+    legend=dict(bgcolor="rgba(0,0,0,0)", borderwidth=0,
+                orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     margin=dict(l=8, r=8, t=36, b=8),
     hovermode="x unified",
     hoverlabel=dict(bgcolor=SURF2, bordercolor=BDR, font=dict(color=TX, size=11)),
 )
 
-GROWTH = [
-    {"t":"MRVL", "n":"Marvell Technology",  "c":"מוליכים למחצה", "d":"שבבי AI לתשתיות ענן",     "a":CYAN},
-    {"t":"NVDA", "n":"NVIDIA",              "c":"מוליכים למחצה", "d":"מנהיגה עולמית בשבבי AI",  "a":CYAN},
-    {"t":"AMD",  "n":"AMD",                 "c":"מוליכים למחצה", "d":"שבבים למחשוב ו-AI",        "a":CYAN},
-    {"t":"ARM",  "n":"ARM Holdings",        "c":"מוליכים למחצה", "d":"ארכיטקטורת שבבים מובילה", "a":CYAN},
-    {"t":"CRWD", "n":"CrowdStrike",         "c":"סייבר",         "d":"אבטחת סייבר מבוססת AI",   "a":RED},
-    {"t":"PLTR", "n":"Palantir",            "c":"AI · ענן",      "d":"ניתוח נתונים ו-AI",        "a":PUR},
-    {"t":"DDOG", "n":"Datadog",             "c":"AI · ענן",      "d":"ניטור ואובזרבביליות",      "a":PUR},
-    {"t":"NET",  "n":"Cloudflare",          "c":"AI · ענן",      "d":"תשתית אינטרנט ואבטחה",    "a":PUR},
-    {"t":"AXON", "n":"Axon Enterprise",     "c":"סייבר",         "d":"טכנולוגיות AI לביטחון",   "a":RED},
-    {"t":"TTD",  "n":"The Trade Desk",      "c":"AI · ענן",      "d":"פרסום דיגיטלי מבוסס AI",  "a":PUR},
+HOT = [
+    {"t":"MRVL","n":"Marvell Technology", "c":"מוליכים למחצה",   "a":CYAN,
+     "w":"מייצרת שבבים ייעודיים למרכזי נתונים ורשתות. "
+         "נהנית מחוזים עם ענקיות הענן לשבבי AI מותאמים אישית."},
+    {"t":"NVDA","n":"NVIDIA",             "c":"GPU / AI",         "a":PUR,
+     "w":"מייצרת GPU שמניעים כמעט כל מערכת AI בעולם. "
+         "ה-H100 וה-B200 שלה הכי מבוקשים בשוק."},
+    {"t":"AMD", "n":"AMD",                "c":"מעבדים",           "a":RED,
+     "w":"מתחרה ב-Intel וב-NVIDIA. "
+         "כובשת נתחי שוק בשרתים ובשוק ה-AI עם מחיר-ביצועים גבוה."},
+    {"t":"ARM", "n":"ARM Holdings",       "c":"ארכיטקטורת שבבים","a":AMB,
+     "w":"מעצבת ארכיטקטורת שבבים ומוכרת רישיונות. "
+         "כמעט כל סמארטפון ושבב AI בעולם מבוסס עליה."},
+    {"t":"CRWD","n":"CrowdStrike",        "c":"אבטחת סייבר",      "a":GRN,
+     "w":"מגנה על חברות מפני האקרים ותוכנות כופר בענן. "
+         "פלטפורמת Falcon עוצרת מתקפות בזמן אמת."},
+    {"t":"PLTR","n":"Palantir",           "c":"ניתוח נתונים / AI","a":PUR,
+     "w":"בונה תוכנות לניתוח נתונים לממשלות וחברות ענק. "
+         "פלטפורמת AI שמאפשרת קבלת החלטות בשפה יומיומית."},
+    {"t":"DDOG","n":"Datadog",            "c":"מוניטורינג ענן",   "a":CYAN,
+     "w":"עוקבת אחרי שרתים ואפליקציות ומתריעה על תקלות. "
+         "הביקוש גדל עם המעבר לענן."},
+    {"t":"NET", "n":"Cloudflare",         "c":"אבטחת רשת",        "a":AMB,
+     "w":"מגנה על מיליוני אתרים ומאיצה טעינתם. "
+         "כמעט כל גלישה עוברת דרך התשתית שלה."},
+    {"t":"AXON","n":"Axon Enterprise",    "c":"ביטחון ציבורי",    "a":GRN,
+     "w":"מייצרת ציוד לכוחות ביטחון — מצלמות גוף, נשק חשמלי ותוכנת ניהול ראיות. "
+         "צומחת ממכירות לרשויות משטרה."},
+    {"t":"TTD", "n":"The Trade Desk",     "c":"פרסום דיגיטלי",    "a":RED,
+     "w":"מאפשרת קניית שטחי פרסום דיגיטלי בזמן אמת. "
+         "מרוויחה ממעבר תקציבי פרסום מטלוויזיה לדיגיטל."},
 ]
 
-# ── CSS ────────────────────────────────────────────────────────────────────────
-def inject_css():
-    st.markdown(f"""<style>
+PF_FILE = "portfolio.json"
+WL_FILE = "watchlist.json"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE CONFIG
+# ══════════════════════════════════════════════════════════════════════════════
+st.set_page_config(
+    page_title="מנתח מניות",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SESSION STATE
+# ══════════════════════════════════════════════════════════════════════════════
+_DEFS = {
+    "page":            "home",
+    "home_selected":   None,
+    "pf_prefill":      "",
+    "search_ticker":   "",
+    "mobile_mode":     False,
+    "compare_tickers": ["NVDA", "AAPL"],
+    # Autonomous backtest simulator
+    "demo2_state":       "setup",
+    "demo2_budget":      10000.0,
+    "demo2_target_pct":  50.0,
+    "demo2_start_year":  2018,
+    "demo2_end_year":    2023,
+    "demo2_tickers":     ["NVDA", "AAPL", "AMD", "MSFT"],
+    "demo2_risk":        "מאוזן",
+    "demo2_speed":       "רגיל",
+    "demo2_results":     None,
+    "demo2_frame":       0,
+}
+for _k, _v in _DEFS.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FILE HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+def load_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_json(path, data):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MARKET DATA
+# ══════════════════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=60)
+def quote(sym: str) -> dict:
+    """Returns price, chg (%), rsi, sig, sig_c for a ticker."""
+    try:
+        hist = yf.Ticker(sym).history(period="3mo", interval="1d")
+        if hist.empty or len(hist) < 15:
+            return {}
+        c = hist["Close"].dropna()
+        price   = float(c.iloc[-1])
+        prev    = float(c.iloc[-2])
+        chg     = (price - prev) / prev * 100
+        d = c.diff()
+        g = d.clip(lower=0).rolling(14).mean()
+        lo = (-d.clip(upper=0)).rolling(14).mean()
+        rsi = float(100 - 100 / (1 + g / lo).iloc[-1])
+        if   rsi < 35: sig, sig_c = "קנייה",  GRN
+        elif rsi > 65: sig, sig_c = "מכירה",  RED
+        else:          sig, sig_c = "המתנה",  AMB
+        return {"price": price, "chg": chg, "rsi": rsi,
+                "sig": sig, "sig_c": sig_c}
+    except Exception:
+        return {}
+
+@st.cache_data(ttl=30)
+def fast_price(sym: str):
+    try:
+        fi = yf.Ticker(sym).fast_info
+        # fast_info is a FastInfo object in yfinance 0.2+, not a dict
+        for attr in ("last_price", "lastPrice", "previous_close", "previousClose"):
+            val = (fi.get(attr) if hasattr(fi, "get")
+                   else getattr(fi, attr, None))
+            if val:
+                return float(val)
+        return None
+    except Exception:
+        return None
+
+@st.cache_data(ttl=300)
+def fetch_history(sym: str, period: str = "6mo"):
+    try:
+        df = yf.Ticker(sym).history(period=period, interval="1d")
+        if df.empty:
+            return pd.DataFrame()
+        df = df[["Open","High","Low","Close","Volume"]].copy()
+        c = df["Close"]
+        # MAs
+        df["MA20"]  = c.rolling(20).mean()
+        df["MA50"]  = c.rolling(50).mean()
+        df["MA200"] = c.rolling(200).mean()
+        # Bollinger Bands (20, 2σ)
+        std20 = c.rolling(20).std()
+        df["BB_U"] = df["MA20"] + 2 * std20
+        df["BB_L"] = df["MA20"] - 2 * std20
+        # RSI(14)
+        d  = c.diff()
+        g  = d.clip(lower=0).rolling(14).mean()
+        lo = (-d.clip(upper=0)).rolling(14).mean()
+        df["RSI"] = 100 - 100 / (1 + g / lo)
+        # MACD (12,26,9)
+        ema12 = c.ewm(span=12, adjust=False).mean()
+        ema26 = c.ewm(span=26, adjust=False).mean()
+        df["MACD"]   = ema12 - ema26
+        df["MACD_S"] = df["MACD"].ewm(span=9, adjust=False).mean()
+        df["MACD_H"] = df["MACD"] - df["MACD_S"]
+        # Volume trend
+        df["Vol_MA20"] = df["Volume"].rolling(20).mean()
+        df["Vol_ratio"] = df["Volume"] / df["Vol_MA20"].replace(0, np.nan)
+        # 30-day annualized volatility
+        rets = df["Close"].pct_change()
+        df["Volatility30"] = rets.rolling(30).std() * (252 ** 0.5) * 100
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+@st.cache_data(ttl=3600)
+def fetch_info(sym: str) -> dict:
+    try:
+        return yf.Ticker(sym).info or {}
+    except Exception:
+        return {}
+
+@st.cache_data(ttl=3600)
+def fetch_calendar(sym: str) -> dict:
+    try:
+        cal = yf.Ticker(sym).calendar
+        if cal is None:
+            return {}
+        if isinstance(cal, pd.DataFrame) and not cal.empty:
+            for col in ["Earnings Date", "Earnings High", "Earnings Low"]:
+                if col in cal.columns:
+                    val = cal[col].iloc[0]
+                    if pd.notna(val):
+                        return {"earnings_date": pd.Timestamp(val)}
+        if isinstance(cal, dict):
+            ed = cal.get("Earnings Date")
+            if ed:
+                return {"earnings_date": pd.Timestamp(ed[0] if isinstance(ed, list) else ed)}
+    except Exception:
+        pass
+    return {}
+
+@st.cache_data(ttl=1800)
+def fetch_news(sym: str) -> list:
+    try:
+        return yf.Ticker(sym).news or []
+    except Exception:
+        return []
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AUTONOMOUS BACKTEST SIMULATOR
+# ══════════════════════════════════════════════════════════════════════════════
+TRADEABLE = [
+    ("AAPL","Apple"),    ("MSFT","Microsoft"),  ("GOOGL","Alphabet"),
+    ("AMZN","Amazon"),   ("META","Meta"),        ("TSLA","Tesla"),
+    ("NVDA","NVIDIA"),   ("AMD","AMD"),          ("MRVL","Marvell"),
+    ("ARM","ARM"),       ("CRWD","CrowdStrike"), ("PLTR","Palantir"),
+    ("DDOG","Datadog"),  ("NET","Cloudflare"),   ("AXON","Axon"),
+    ("TTD","Trade Desk"),("NFLX","Netflix"),     ("PYPL","PayPal"),
+    ("SQ","Block"),      ("SHOP","Shopify"),     ("SNOW","Snowflake"),
+    ("INTC","Intel"),    ("CRM","Salesforce"),   ("ADBE","Adobe"),
+    ("V","Visa"),        ("MA","Mastercard"),    ("JPM","JPMorgan"),
+]
+
+RISK_PROFILES = {
+    "שמרני":   {"max_pos": 0.15, "rsi_buy": 28, "rsi_sell": 72, "stop_loss": 0.05},
+    "מאוזן":   {"max_pos": 0.25, "rsi_buy": 33, "rsi_sell": 67, "stop_loss": 0.07},
+    "אגרסיבי": {"max_pos": 0.40, "rsi_buy": 40, "rsi_sell": 60, "stop_loss": 0.10},
+}
+
+ANIM_SPEED = {
+    "איטי": (3,   0.09),   # (frames_per_rerun, sleep_sec)
+    "רגיל": (15,  0.025),
+    "מהיר": (80,  0.008),
+}
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _dl(sym: str, start: str, end: str) -> pd.DataFrame:
+    try:
+        df = yf.download(sym, start=start, end=end, auto_adjust=True, progress=False)
+        if df.empty:
+            return pd.DataFrame()
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        df = df[~df.index.duplicated(keep="last")]
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+def _date_le(d1: str, d2: str) -> bool:
+    try:
+        return datetime.strptime(d1, "%d/%m/%Y") <= datetime.strptime(d2, "%d/%m/%Y")
+    except Exception:
+        return True
+
+def _run_backtest(tickers: list, start_year: int, end_year: int,
+                  budget: float, target_pct: float, risk_key: str):
+    rp    = RISK_PROFILES[risk_key]
+    start = f"{start_year}-01-01"
+    end   = f"{end_year}-12-31"
+
+    # Download data
+    raw = {}
+    for sym in tickers:
+        df = _dl(sym, start, end)
+        if not df.empty and "Close" in df.columns:
+            raw[sym] = df
+
+    if not raw:
+        return None
+
+    # Align closes
+    closes = pd.DataFrame({s: df["Close"] for s, df in raw.items()})
+    closes = closes.ffill().dropna(how="all")
+    if closes.empty:
+        return None
+
+    # Pre-compute RSI(14), MA50, MA200
+    rsi_d  = pd.DataFrame(index=closes.index)
+    ma50_d = pd.DataFrame(index=closes.index)
+    ma200_d = pd.DataFrame(index=closes.index)
+    for sym in closes.columns:
+        c  = closes[sym].ffill()
+        d  = c.diff()
+        g  = d.clip(lower=0).rolling(14).mean()
+        lo = (-d.clip(upper=0)).rolling(14).mean()
+        rsi_d[sym]  = 100 - 100 / (1 + g / lo)
+        ma50_d[sym]  = c.rolling(50).mean()
+        ma200_d[sym] = c.rolling(200).mean()
+
+    # Buy-and-hold: equal weight at first valid price
+    bh_shares = {}
+    per_stock = budget / len(closes.columns)
+    for sym in closes.columns:
+        valid = closes[sym].dropna()
+        if not valid.empty:
+            bh_shares[sym] = per_stock / float(valid.iloc[0])
+
+    # Simulation
+    cash        = float(budget)
+    positions   = {}          # sym -> {shares, entry_price, entry_date}
+    daily_vals  = []          # [(datetime, float)]
+    bh_vals     = []          # [float]
+    trade_log   = []
+    target_val  = budget * (1 + target_pct / 100)
+    tgt_reached = False
+    tgt_date    = None
+
+    for i, dt in enumerate(closes.index):
+        if i < 50:
+            pv = cash + sum(
+                positions[s]["shares"] * float(closes.at[dt, s])
+                for s in positions
+                if s in closes.columns and not pd.isna(closes.at[dt, s])
+            )
+            daily_vals.append((dt, pv))
+            bh = sum(bh_shares.get(s,0) * float(closes.at[dt, s])
+                     for s in closes.columns if not pd.isna(closes.at[dt, s]))
+            bh_vals.append(bh or budget)
+            continue
+
+        # ── Exits ────────────────────────────────────────────────────────────
+        for sym in list(positions.keys()):
+            if sym not in closes.columns: continue
+            price = closes.at[dt, sym]
+            if pd.isna(price): continue
+            price  = float(price)
+            pos    = positions[sym]
+            pnl    = (price - pos["entry_price"]) / pos["entry_price"]
+            rsi_v  = float(rsi_d.at[dt, sym]) if (sym in rsi_d.columns and not pd.isna(rsi_d.at[dt, sym])) else None
+
+            reason = None
+            if pnl <= -rp["stop_loss"]:
+                reason = f"Stop Loss: {pnl*100:.1f}% 🛑"
+            elif rsi_v is not None and rsi_v > rp["rsi_sell"]:
+                reason = f"RSI={rsi_v:.0f} — אות מכירה 📉"
+
+            if reason:
+                proceeds   = pos["shares"] * price
+                pnl_dollar = proceeds - pos["shares"] * pos["entry_price"]
+                cash      += proceeds
+                trade_log.append({
+                    "date":        dt.strftime("%d/%m/%Y"),
+                    "action":      "sell",
+                    "sym":         sym,
+                    "price":       price,
+                    "shares":      pos["shares"],
+                    "entry_price": pos["entry_price"],
+                    "pnl_pct":     pnl * 100,
+                    "pnl_dollar":  pnl_dollar,
+                    "reason":      reason,
+                })
+                del positions[sym]
+
+        # ── Entries ──────────────────────────────────────────────────────────
+        pv_now = cash + sum(
+            positions[s]["shares"] * float(closes.at[dt, s])
+            for s in positions
+            if s in closes.columns and not pd.isna(closes.at[dt, s])
+        )
+        for sym in closes.columns:
+            if sym in positions: continue
+            price = closes.at[dt, sym]
+            if pd.isna(price): continue
+            price  = float(price)
+            rsi_v  = float(rsi_d.at[dt, sym])  if (sym in rsi_d.columns  and not pd.isna(rsi_d.at[dt, sym]))  else None
+            ma50_v = float(ma50_d.at[dt, sym])  if (sym in ma50_d.columns and not pd.isna(ma50_d.at[dt, sym]))  else None
+            ma200_v= float(ma200_d.at[dt, sym]) if (sym in ma200_d.columns and not pd.isna(ma200_d.at[dt, sym])) else None
+
+            if rsi_v is None or ma50_v is None: continue
+            if rsi_v >= rp["rsi_buy"]: continue
+            if price <= ma50_v: continue     # only buy above MA50
+
+            max_inv = pv_now * rp["max_pos"]
+            if cash < max_inv * 0.25: continue
+            invest = min(cash * 0.9, max_inv)
+            shares = int(invest / price)
+            if shares < 1: continue
+
+            cash -= shares * price
+            positions[sym] = {"shares": shares, "entry_price": price,
+                               "entry_date": dt.strftime("%d/%m/%Y")}
+
+            ma_note = "מחיר מעל MA50"
+            if ma200_v:
+                ma_note += " ו-MA200" if price > ma200_v else ", מתחת ל-MA200"
+            trade_log.append({
+                "date":        dt.strftime("%d/%m/%Y"),
+                "action":      "buy",
+                "sym":         sym,
+                "price":       price,
+                "shares":      shares,
+                "entry_price": price,
+                "pnl_pct":     None,
+                "pnl_dollar":  None,
+                "reason":      f"RSI={rsi_v:.0f}, {ma_note} 📈",
+            })
+
+        # ── Daily snapshot ────────────────────────────────────────────────────
+        pv = cash + sum(
+            positions[s]["shares"] * float(closes.at[dt, s])
+            for s in positions
+            if s in closes.columns and not pd.isna(closes.at[dt, s])
+        )
+        daily_vals.append((dt, pv))
+        bh = sum(bh_shares.get(s,0) * float(closes.at[dt, s])
+                 for s in closes.columns if not pd.isna(closes.at[dt, s]))
+        bh_vals.append(bh or budget)
+
+        if not tgt_reached and pv >= target_val:
+            tgt_reached = True
+            tgt_date    = dt.strftime("%d/%m/%Y")
+
+    if not daily_vals:
+        return None
+
+    # Best / worst closed trade
+    sells = [t for t in trade_log if t["action"] == "sell"]
+    best  = max(sells, key=lambda t: t["pnl_dollar"], default=None) if sells else None
+    worst = min(sells, key=lambda t: t["pnl_dollar"], default=None) if sells else None
+
+    final_val = daily_vals[-1][1]
+    final_bh  = bh_vals[-1]
+    total_ret = (final_val - budget) / budget * 100
+    bh_ret    = (final_bh  - budget) / budget * 100
+
+    return {
+        "daily_vals":    daily_vals,
+        "bh_vals":       bh_vals,
+        "trade_log":     trade_log,
+        "tgt_reached":   tgt_reached,
+        "tgt_date":      tgt_date,
+        "final_val":     final_val,
+        "final_bh":      final_bh,
+        "total_ret":     total_ret,
+        "bh_ret":        bh_ret,
+        "n_buys":        sum(1 for t in trade_log if t["action"] == "buy"),
+        "best_trade":    best,
+        "worst_trade":   worst,
+    }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CSS
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
-html,body,[class*="css"],*{{font-family:'Heebo',sans-serif!important;box-sizing:border-box}}
-.stApp{{background:{BG}!important;color:{TX};direction:rtl}}
-.main .block-container{{padding:0 2rem 4rem;max-width:1440px}}
-[data-testid="collapsedControl"],section[data-testid="stSidebar"]{{display:none!important}}
-p,span,label,div,h1,h2,h3,h4,h5,h6{{color:{TX};direction:rtl;text-align:right}}
-h1{{font-weight:800!important}}h2{{font-weight:700!important}}h3{{font-weight:600!important}}
 
-/* search */
-.sw .stTextInput>div>div{{background:{SURF}!important;border:2px solid {CYAN}!important;
-  border-radius:16px!important;box-shadow:0 0 0 5px {CDIM},0 8px 40px rgba(0,0,0,.6)!important}}
-.sw .stTextInput input{{background:transparent!important;color:{TX}!important;
-  font-size:1.5rem!important;font-weight:800!important;padding:22px 28px!important;
-  text-align:center!important;direction:ltr!important;letter-spacing:4px!important;caret-color:{CYAN}!important}}
-.sw .stTextInput input::placeholder{{color:{TX3}!important;font-size:.9rem!important;
-  font-weight:400!important;letter-spacing:.5px!important;direction:rtl!important}}
-.sw label{{display:none!important}}
+/* ── Reset ── */
+#MainMenu, footer, header {{ visibility: hidden; }}
+.stDeployButton {{ display: none; }}
+html, body, .stApp {{
+    background: {BG} !important;
+    color: {TX} !important;
+    font-family: 'Heebo', 'Segoe UI', sans-serif !important;
+}}
+.block-container {{ padding: 0 1.8rem 2rem !important; max-width: 1420px !important; }}
 
-/* selectbox */
-.stSelectbox>div>div{{background:{SURF}!important;border:1px solid {BDR}!important;
-  border-radius:10px!important;color:{TX}!important}}
-.stSelectbox>div>div:hover{{border-color:{CYAN}!important}}
-.stSelectbox svg{{fill:{TX2}!important}}
+/* ── RTL ── */
+p, div, span, li {{ direction: rtl; }}
+input, textarea, select {{ direction: rtl !important; text-align: right !important; }}
+label {{ color: {TX2} !important; font-size: .82rem !important; direction: rtl !important; }}
 
-/* tabs */
-.stTabs [data-baseweb="tab-list"]{{background:{SURF};border-bottom:1px solid {BDR};
-  border-radius:14px 14px 0 0;padding:0 16px;gap:4px}}
-.stTabs [data-baseweb="tab"]{{background:transparent;color:{TX2}!important;
-  font-size:.95rem!important;font-weight:600!important;padding:14px 22px!important;
-  border-bottom:2px solid transparent!important;border-radius:0!important;transition:color .2s!important}}
-.stTabs [data-baseweb="tab"]:hover{{color:{TX}!important;background:{CDIM}!important}}
-.stTabs [aria-selected="true"]{{color:{TX}!important;border-bottom:2px solid {CYAN}!important;background:transparent!important}}
-.stTabs [data-baseweb="tab-panel"]{{background:{SURF};border:1px solid {BDR};border-top:none;
-  border-radius:0 0 14px 14px;padding:24px 20px}}
+/* ── Buttons ── */
+.stButton > button {{
+    background: {SURF2} !important;
+    color: {TX} !important;
+    border: 1px solid {BDR} !important;
+    border-radius: 8px !important;
+    font-family: 'Heebo', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: .86rem !important;
+    transition: all .15s ease !important;
+    direction: rtl !important;
+}}
+.stButton > button:hover {{
+    background: {BDR2} !important;
+    border-color: {CYAN} !important;
+    color: {CYAN} !important;
+    transform: translateY(-1px);
+}}
+.stButton > button[kind="primary"] {{
+    background: {CYAN}28 !important;
+    border-color: {CYAN} !important;
+    color: {CYAN} !important;
+    font-weight: 700 !important;
+}}
+.stButton > button[kind="primary"]:hover {{
+    background: {CYAN}44 !important;
+}}
 
-/* expander */
-.streamlit-expanderHeader{{background:{SURF}!important;color:{TX}!important;
-  border:1px solid {BDR}!important;border-radius:10px!important;
-  font-weight:600!important;padding:12px 16px!important}}
-.streamlit-expanderHeader:hover{{border-color:{BDR2}!important}}
-.streamlit-expanderContent{{background:{SURF}!important;border:1px solid {BDR}!important;
-  border-top:none!important;border-radius:0 0 10px 10px!important;padding:16px!important}}
+/* ── Inputs ── */
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input {{
+    background: {SURF2} !important;
+    color: {TX} !important;
+    border: 1px solid {BDR} !important;
+    border-radius: 8px !important;
+    font-family: 'Heebo', sans-serif !important;
+    font-size: .9rem !important;
+}}
+.stTextInput > div > div > input:focus,
+.stNumberInput > div > div > input:focus {{
+    border-color: {CYAN} !important;
+    box-shadow: 0 0 0 2px {CYAN}22 !important;
+}}
+.stSelectbox > div > div,
+.stMultiSelect > div > div {{
+    background: {SURF2} !important;
+    border: 1px solid {BDR} !important;
+    border-radius: 8px !important;
+    color: {TX} !important;
+}}
+.stDateInput > div > div > input {{
+    background: {SURF2} !important;
+    color: {TX} !important;
+    border: 1px solid {BDR} !important;
+    border-radius: 8px !important;
+}}
 
-/* number input */
-.stNumberInput input{{background:{SURF}!important;border:1px solid {BDR}!important;
-  border-radius:8px!important;color:{TX}!important;direction:ltr!important;
-  text-align:right!important;font-size:.95rem!important;padding:8px 12px!important}}
-.stNumberInput input:focus{{border-color:{CYAN}!important;box-shadow:0 0 0 2px {CDIM}!important}}
-.stNumberInput label{{color:{TX}!important;font-weight:600!important}}
-div[data-baseweb="input"]{{background:{SURF}!important;border-color:{BDR}!important}}
+/* ── Sliders ── */
+.stSlider > div {{ direction: ltr; }}
+.stSlider .st-bq {{ background: {CYAN} !important; }}
 
-/* gs buttons */
-.gsb button{{background:{SURF2}!important;border:1px solid {BDR}!important;
-  border-radius:8px!important;color:{TX}!important;font-weight:700!important;
-  font-size:.95rem!important;letter-spacing:1px!important;padding:10px!important;transition:all .2s!important}}
-.gsb button:hover{{border-color:{CYAN}!important;background:{CDIM}!important;color:{CYAN}!important}}
+/* ── Expander ── */
+details {{
+    background: {SURF} !important;
+    border: 1px solid {BDR} !important;
+    border-radius: 10px !important;
+    padding: 4px 8px !important;
+}}
+summary {{ color: {TX2} !important; }}
 
-/* misc */
-hr{{border:none;border-top:1px solid {BDR}!important;margin:.75rem 0!important}}
-.stCaption{{color:{TX3}!important;font-size:.73rem!important}}
-.stMarkdown{{text-align:right!important}}
-.stSpinner>div{{border-top-color:{CYAN}!important}}
-.stInfo{{background:rgba(0,180,216,.06)!important;border:1px solid rgba(0,180,216,.2)!important;border-radius:10px!important}}
-.stError{{background:{RDIM}!important;border:1px solid rgba(239,68,68,.25)!important;border-radius:10px!important}}
-[data-testid="column"]{{padding:0 6px!important}}
-.stMarkdown p{{margin:0}}
+/* ── Spinner ── */
+.stSpinner > div {{ border-top-color: {CYAN} !important; }}
+
+/* ── Overflow (needed for absolute children) ── */
+[data-testid="stVerticalBlock"],
+[data-testid="column"],
+[data-testid="stMarkdownContainer"] {{ overflow: visible !important; }}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+::-webkit-scrollbar-track {{ background: {BG}; }}
+::-webkit-scrollbar-thumb {{ background: {BDR2}; border-radius: 3px; }}
+
+/* ── Cards ── */
+.scard {{
+    background: {SURF};
+    border: 1px solid {BDR};
+    border-radius: 14px;
+    padding: 16px;
+    height: 100%;
+    direction: rtl;
+    transition: border-color .18s, box-shadow .18s, transform .15s;
+}}
+.scard:hover {{
+    border-color: {BDR2};
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+    transform: translateY(-2px);
+}}
+
+/* ── Section header ── */
+.section-head {{
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: {TX};
+    direction: rtl;
+    padding: 4px 0 12px;
+    border-bottom: 2px solid {BDR};
+    margin-bottom: 18px;
+}}
+
+/* ── Table header ── */
+.tbl-head {{
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    background: {SURF3};
+    border: 1px solid {BDR};
+    border-radius: 10px 10px 0 0;
+    direction: rtl;
+    font-size: .76rem;
+    color: {TX3};
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}}
+.tbl-row {{
+    display: flex;
+    align-items: center;
+    padding: 11px 16px;
+    border-left: 1px solid {BDR};
+    border-right: 1px solid {BDR};
+    border-bottom: 1px solid {BDR};
+    direction: rtl;
+    transition: background .12s;
+    font-size: .88rem;
+}}
+.tbl-row:hover {{ background: {SURF2}; }}
+.tbl-row:last-child {{ border-radius: 0 0 10px 10px; }}
+
+/* ── Log entry ── */
+.log-entry {{
+    padding: 8px 12px;
+    border-radius: 7px;
+    margin-bottom: 6px;
+    font-size: .82rem;
+    line-height: 1.5;
+    direction: rtl;
+    background: {SURF2};
+    border-right: 3px solid {BDR2};
+}}
+
+/* ── Summary card ── */
+.sumcard {{
+    background: {SURF};
+    border: 1px solid {BDR};
+    border-radius: 12px;
+    padding: 16px;
+    direction: rtl;
+    text-align: center;
+}}
 </style>""", unsafe_allow_html=True)
 
 
-# ── Data ───────────────────────────────────────────────────────────────────────
-@st.cache_data(ttl=300)
-def fetch_history(sym, period):
-    df = yf.Ticker(sym).history(period=period)
-    return _ind(df) if not df.empty else df
+# ══════════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+def _prefetch_quotes(tickers: list) -> dict:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(tickers)) as ex:
+        results = list(ex.map(quote, tickers))
+    return dict(zip(tickers, results))
 
-@st.cache_data(ttl=3600)
-def fetch_bt(sym):
-    df = yf.Ticker(sym).history(start="2017-01-01")
-    return _ind(df) if not df.empty else df
+def _check_alerts(watchlist: list) -> list:
+    alerts = []
+    for sym in watchlist:
+        q = quote(sym)
+        if not q:
+            continue
+        rsi = q.get("rsi", 50)
+        if rsi < 35:
+            alerts.append({"sym": sym, "type": "buy", "rsi": rsi,
+                           "price": q.get("price", 0), "chg": q.get("chg", 0)})
+        elif rsi > 65:
+            alerts.append({"sym": sym, "type": "sell", "rsi": rsi,
+                           "price": q.get("price", 0), "chg": q.get("chg", 0)})
+    return alerts
 
-@st.cache_data(ttl=300)
-def fetch_info(sym): return yf.Ticker(sym).info
+# ══════════════════════════════════════════════════════════════════════════════
+# NAVIGATION
+# ══════════════════════════════════════════════════════════════════════════════
+def _nav():
+    p = st.session_state["page"]
 
-@st.cache_data(ttl=3600)
-def fetch_fin(sym):  return yf.Ticker(sym).financials
+    st.markdown(f"""<div style="
+        background:{SURF};border-bottom:1px solid {BDR};
+        padding:14px 24px 10px;margin-bottom:22px;
+        display:flex;align-items:center;justify-content:space-between;direction:rtl;
+    ">
+        <div style="font-size:1.2rem;font-weight:800;color:{CYAN};letter-spacing:-.02em;">
+            📈 מנתח מניות
+        </div>
+        <div style="font-size:.72rem;color:{TX3};">
+            {datetime.now().strftime('%d/%m/%Y · %H:%M')}
+        </div>
+    </div>""", unsafe_allow_html=True)
 
-def _ind(df):
-    df = df.copy()
-    d = df["Close"].diff()
-    g = d.clip(lower=0).rolling(14).mean()
-    l = (-d.clip(upper=0)).rolling(14).mean()
-    df["RSI"]     = 100 - 100/(1+g/l)
-    df["MA50"]    = df["Close"].rolling(50).mean()
-    df["MA200"]   = df["Close"].rolling(200).mean()
-    ma = df["Close"].rolling(20).mean()
-    sd = df["Close"].rolling(20).std()
-    df["BBU"] = ma + 2*sd;  df["BBL"] = ma - 2*sd
-    return df
+    mob_lbl = "📱" if not st.session_state.get("mobile_mode") else "🖥️"
+    _, b1, b2, b3, b4, b5, b6 = st.columns([1.2, 1, 1, 1, 1, 1, 0.45])
+    with b1:
+        if st.button("🏠 ראשי", key="nb_home", use_container_width=True,
+                     type="primary" if p == "home" else "secondary"):
+            st.session_state["page"] = "home"
+            st.rerun()
+    with b2:
+        if st.button("💼 התיק שלי", key="nb_pf", use_container_width=True,
+                     type="primary" if p == "portfolio" else "secondary"):
+            st.session_state["page"] = "portfolio"
+            st.rerun()
+    with b3:
+        if st.button("👁️ מעקב", key="nb_wl", use_container_width=True,
+                     type="primary" if p == "watchlist" else "secondary"):
+            st.session_state["page"] = "watchlist"
+            st.rerun()
+    with b4:
+        if st.button("⚖️ השוואה", key="nb_cmp", use_container_width=True,
+                     type="primary" if p == "compare" else "secondary"):
+            st.session_state["page"] = "compare"
+            st.rerun()
+    with b5:
+        lbl = "🎮 דמו 🟢" if st.session_state.get("demo2_state") == "animating" else "🎮 דמו"
+        if st.button(lbl, key="nb_demo", use_container_width=True,
+                     type="primary" if p == "demo" else "secondary"):
+            st.session_state["page"] = "demo"
+            st.rerun()
+    with b6:
+        if st.button(mob_lbl, key="nb_mob", use_container_width=True,
+                     help="החלף למצב נייד / מחשב"):
+            st.session_state["mobile_mode"] = not st.session_state.get("mobile_mode", False)
+            st.rerun()
 
-
-# ── Analysis ───────────────────────────────────────────────────────────────────
-def get_rec(df, info):
-    r = df.iloc[-1]
-    c, rsi, m50, m200 = r["Close"], r["RSI"], r["MA50"], r["MA200"]
-    score, sigs = 0, []
-    if not np.isnan(rsi):
-        if   rsi < 30: score+=2; sigs.append((True,  f"RSI {rsi:.1f} — מכירת יתר"))
-        elif rsi > 70: score-=2; sigs.append((False, f"RSI {rsi:.1f} — קניית יתר"))
-        else:                    sigs.append((None,  f"RSI {rsi:.1f} — נייטרלי"))
-    if not np.isnan(m50):
-        if c>m50:  score+=1; sigs.append((True,  f"מחיר מעל MA50  (${m50:.0f})"))
-        else:      score-=1; sigs.append((False, f"מחיר מתחת MA50  (${m50:.0f})"))
-    if not np.isnan(m200):
-        if c>m200: score+=1; sigs.append((True,  f"מחיר מעל MA200 (${m200:.0f})"))
-        else:      score-=1; sigs.append((False, f"מחיר מתחת MA200 (${m200:.0f})"))
-    if not (np.isnan(m50) or np.isnan(m200)):
-        if m50>m200: score+=1; sigs.append((True,  "צלב זהב — MA50 > MA200"))
-        else:        score-=1; sigs.append((False, "צלב מוות — MA50 < MA200"))
-    if score>=2:    return "קנה",  GRN, sigs, score
-    elif score<=-2: return "מכור", RED, sigs, score
-    else:           return "המתן", AMB, sigs, score
-
-
-def gen_explain(df, info, label, score):
-    r    = df.iloc[-1]
-    c    = r["Close"]; rsi = r["RSI"]; m50 = r["MA50"]; m200 = r["MA200"]
-    lc   = {"קנה":GRN,"מכור":RED,"המתן":AMB}[label]
-    pct  = max(5, min(95, (score+5)/10*100))
-    stg  = "חזק מאוד" if abs(score)>=4 else "חזק" if abs(score)>=3 else "מתון"
-
-    # score bar
-    bar = f"""
-    <div style="background:{SURF2};border:1px solid {BDR};border-radius:14px;
-                padding:20px 22px;margin-bottom:16px;direction:rtl;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div style="font-size:.78rem;color:{TX2};font-weight:500;">חוזק האות: <strong style="color:{lc}">{stg}</strong></div>
-        <div style="font-size:2rem;font-weight:900;color:{lc};letter-spacing:2px;">{label}</div>
-      </div>
-      <div style="position:relative;height:8px;border-radius:4px;
-                  background:linear-gradient(90deg,{RED} 0%,{AMB} 50%,{GRN} 100%);">
-        <div style="position:absolute;top:-4px;left:{pct:.1f}%;width:16px;height:16px;
-                    background:{lc};border-radius:50%;transform:translateX(-50%);
-                    box-shadow:0 0 10px {lc}99;border:2px solid {BG};"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px;">
-        <div style="color:{RED};font-size:.68rem;font-weight:600;">◄ דובי</div>
-        <div style="color:{TX3};font-size:.68rem;">נייטרלי</div>
-        <div style="color:{GRN};font-size:.68rem;font-weight:600;">שורי ►</div>
-      </div>
-    </div>"""
-
-    def eblock(icon, title, body, accent=CYAN):
-        return f"""
-        <div style="background:{SURF2};border:1px solid {BDR};border-top:3px solid {accent};
-                    border-radius:0 0 12px 12px;padding:18px;height:100%;
-                    direction:rtl;text-align:right;">
-          <div style="font-size:.7rem;font-weight:700;color:{TX2};text-transform:uppercase;
-                      letter-spacing:.08em;margin-bottom:10px;">{icon} {title}</div>
-          <div style="color:{TX};font-size:.86rem;line-height:1.75;">{body}</div>
-        </div>"""
-
-    # RSI
-    if not np.isnan(rsi):
-        if rsi < 30:
-            rb = (f"מדד ה-RSI עומד על <strong>{rsi:.1f}</strong>, מתחת לסף 30 של <strong>מכירת יתר</strong>. "
-                  f"המוכרים דחפו את המחיר מטה בחוזקה — לעתים קרובות מעבר למה שמוצדק. "
-                  f"ירידה לרמה זו מסמנת הזדמנות כניסה פוטנציאלית, אם כי אין ערובה שהמחיר "
-                  f"לא ימשיך לרדת לפני ההתאוששות.")
-            ra = GRN
-        elif rsi > 70:
-            rb = (f"מדד ה-RSI עומד על <strong>{rsi:.1f}</strong>, מעל לסף 70 של <strong>קניית יתר</strong>. "
-                  f"הקונים דחפו את המחיר מעלה בעוצמה. מצב זה מקדים לעתים תיקון כלפי מטה, "
-                  f"אם כי מניות צמיחה חזקות יכולות להישאר בקניית יתר לתקופות ממושכות.")
-            ra = RED
-        else:
-            mood = "מעט גבוהה" if rsi>50 else "מעט נמוכה"
-            rb = (f"מדד ה-RSI עומד על <strong>{rsi:.1f}</strong> — באזור הנייטרלי (30–70), "
-                  f"{mood} מהמרכז. אין אות ברור של קניית יתר או מכירת יתר, "
-                  f"מה שמרמז על מאזן יחסי בין קונים ומוכרים.")
-            ra = TX2
-    else:
-        rb, ra = "אין מספיק נתונים לחישוב RSI.", TX3
-    rsi_h = eblock("📊", "ניתוח RSI", rb, ra)
-
-    # MA
-    if not (np.isnan(m50) or np.isnan(m200)):
-        ab50 = c>m50; ab200 = c>m200
-        cross = "צלב זהב" if m50>m200 else "צלב מוות"
-        cc = GRN if m50>m200 else RED
-        cdesc = "אות שורי חזק, מגמת עלייה ארוכת טווח" if m50>m200 else "אות דובי, מגמת ירידה בטווח הארוך"
-        if ab50 and ab200:
-            pos = f"המחיר (${c:.2f}) נסחר <strong>מעל שני הממוצעים</strong> — MA50 (${m50:.0f}) וMA200 (${m200:.0f}). תמונה טכנית חיובית המאשרת מגמה עולה."
-        elif not ab50 and not ab200:
-            pos = f"המחיר (${c:.2f}) נסחר <strong>מתחת לשני הממוצעים</strong> — MA50 (${m50:.0f}) וMA200 (${m200:.0f}). תמונה שלילית המצביעה על לחץ מכירות."
-        elif ab50:
-            pos = f"המחיר (${c:.2f}) <strong>מעל MA50</strong> (${m50:.0f}) אך <strong>מתחת ל-MA200</strong> (${m200:.0f}). מגמה קצרה חיובית, ארוכה עדיין שלילית."
-        else:
-            pos = f"המחיר (${c:.2f}) <strong>מתחת ל-MA50</strong> (${m50:.0f}) אך <strong>מעל MA200</strong> (${m200:.0f}). חולשה קצרת טווח בתוך מגמה ארוכה חיובית."
-        mb = f"{pos}<br><br><strong style='color:{cc}'>{cross}:</strong> {cdesc}."
-        ma_a = GRN if (ab50 and ab200 and m50>m200) else RED if (not ab50 and not ab200 and m50<m200) else BDR
-    else:
-        mb, ma_a = "אין מספיק נתונים לחישוב ממוצעים נעים.", TX3
-    ma_h = eblock("📈", "ממוצעים נעים", mb, ma_a)
-
-    # Fundamentals
-    pe=info.get("trailingPE"); fpe=info.get("forwardPE")
-    rg=info.get("revenueGrowth"); eg=info.get("earningsGrowth")
-    lines=[]
-    if pe:
-        desc = "ציפיות צמיחה גבוהות — סיכון אם הצמיחה לא תתממש" if pe>60 \
-               else "הערכת שווי סבירה עבור מניית צמיחה" if pe>25 \
-               else "מכפיל נמוך — עשוי להצביע על הזדמנות"
-        lines.append(f"<strong>מכפיל רווח {pe:.0f}x</strong> — {desc}")
-    if fpe and pe and fpe<pe:
-        lines.append(f"מכפיל עתידי ({fpe:.0f}x) נמוך מהנוכחי — האנליסטים צופים שיפור ברווחיות")
-    if rg:
-        gc = GRN if rg>.15 else AMB if rg>0 else RED
-        lines.append(f"<strong style='color:{gc}'>צמיחת הכנסות: {rg*100:.1f}%</strong>")
-    if eg:
-        gc = GRN if eg>.15 else AMB if eg>0 else RED
-        lines.append(f"<strong style='color:{gc}'>צמיחת רווח: {eg*100:.1f}%</strong>")
-    fb = "<br>".join(f"• {l}" for l in lines) if lines else "נתונים פונדמנטליים אינם זמינים."
-    fund_h = eblock("🏦", "נתונים פונדמנטליים", fb)
-
-    # Risk
-    risks = {
-        "קנה":  ("המלצת קנייה — אזהרת סיכון",
-                  f"מניות צמיחה בתחומי AI ומוליכים למחצה הן תנודתיות מאוד. "
-                  f"ירידה בשוק, דו\"ח מאכזב או שינוי ריביות יכולים לבטל את האות תוך ימים. "
-                  f"מומלץ להגדיר <strong>Stop-Loss</strong> ולפזר את ההשקעה על פני מספר פוזיציות."),
-        "מכור": ("המלצת מכירה — אזהרת סיכון",
-                  f"מניות עם קניית יתר יכולות להמשיך לעלות, במיוחד עם קטליזטור עסקי חזק. "
-                  f"שקול <strong>הקטנת פוזיציה חלקית</strong> במקום מכירה מלאה."),
-        "המתן": ("המתנה — אזהרת סיכון",
-                  f"מצב נייטרלי אינו אומר שאין סיכון. עקוב אחר נפחי מסחר, חדשות הענף "
-                  f"ואינדיקטורים מקרו-כלכליים לפני נקיטת עמדה."),
-    }
-    rt, rb2 = risks[label]
-    risk_h = f"""
-    <div style="background:{ADIM};border:1px solid rgba(245,158,11,.3);
-                border-right:4px solid {AMB};border-radius:10px;
-                padding:16px 20px;direction:rtl;text-align:right;margin-top:4px;">
-      <div style="color:{AMB};font-size:.72rem;font-weight:700;
-                  text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">⚠️ {rt}</div>
-      <div style="color:{TX};font-size:.86rem;line-height:1.7;">{rb2}</div>
-    </div>"""
-
-    return bar, rsi_h, ma_h, fund_h, risk_h
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
 
-def hold_str(days: int) -> str:
-    if days <= 0:  return "—"
-    if days < 7:   return f"{days} ימים"
-    if days < 30:  return f"~{days//7} שבועות"
-    if days < 365: return f"~{days//30} חודשים"
-    return f"~{days//365} שנים"
-
-
-def run_bt_v2(df: pd.DataFrame, initial: float, freq: str = "daily") -> dict:
-    """Backtest with frequency control + 0.1% transaction costs tracked in parallel."""
-    cash_c, sh_c, pos_c   = initial, 0., False   # with costs
-    cash_nc, sh_nc, pos_nc = initial, 0., False  # without costs
-    port_c, port_nc, bh   = [], [], []
-    trades, holding_days  = [], []
-    buy_date = None
-    prev_period = None
-    bh_sh = initial / df["Close"].iloc[0]
-
-    for dt, row in df.iterrows():
-        cl, rsi = row["Close"], row["RSI"]
-        bh.append(bh_sh * cl)
-
-        check = False
-        if freq == "daily":
-            check = True
-        elif freq == "weekly":
-            wk = (dt.year, dt.isocalendar()[1])
-            if wk != prev_period:
-                prev_period = wk;  check = True
-        elif freq == "monthly":
-            mo = (dt.year, dt.month)
-            if mo != prev_period:
-                prev_period = mo;  check = True
-
-        if check and not np.isnan(rsi):
-            # ── with-cost portfolio ──
-            if rsi < 30 and not pos_c and cash_c > 0:
-                cost = cash_c * 0.001
-                sh_c = (cash_c - cost) / cl;  cash_c = 0;  pos_c = True
-                buy_date = dt
-                trades.append({"type":"buy",  "date":dt, "price":cl, "cost":cost})
-            elif rsi > 70 and pos_c and sh_c > 0:
-                gross = sh_c * cl;  cost = gross * 0.001
-                cash_c = gross - cost;  sh_c = 0;  pos_c = False
-                if buy_date:
-                    holding_days.append((dt - buy_date).days);  buy_date = None
-                trades.append({"type":"sell", "date":dt, "price":cl, "cost":cost})
-            # ── no-cost mirror ──
-            if rsi < 30 and not pos_nc and cash_nc > 0:
-                sh_nc = cash_nc / cl;  cash_nc = 0;  pos_nc = True
-            elif rsi > 70 and pos_nc and sh_nc > 0:
-                cash_nc = sh_nc * cl;  sh_nc = 0;  pos_nc = False
-
-        port_c.append(cash_c  + sh_c  * cl)
-        port_nc.append(cash_nc + sh_nc * cl)
-
-    s        = pd.Series(port_c, index=df.index)
-    max_dd   = ((s - s.cummax()) / s.cummax()).min() * 100
-    n_buys   = sum(1 for t in trades if t["type"]=="buy")
-    n_sells  = sum(1 for t in trades if t["type"]=="sell")
-    tot_cost = sum(t["cost"] for t in trades)
-
-    return dict(
-        port=port_c, port_nc=port_nc, bh=bh,
-        buys= [(t["date"], t["price"]) for t in trades if t["type"]=="buy"],
-        sells=[(t["date"], t["price"]) for t in trades if t["type"]=="sell"],
-        fs=port_c[-1],  fs_nc=port_nc[-1],  fb=bh[-1],
-        rs =(port_c[-1]  - initial)/initial*100,
-        rs_nc=(port_nc[-1]- initial)/initial*100,
-        rb =(bh[-1]      - initial)/initial*100,
-        dd=max_dd,
-        nb=n_buys, ns=n_sells, n_trades=n_buys+n_sells,
-        tot_cost=tot_cost,
-        cost_impact=port_nc[-1]-port_c[-1],
-        avg_hold=int(np.mean(holding_days)) if holding_days else 0,
-    )
-
-
-def gen_freq_summary(res: dict, sym: str) -> tuple:
-    d, w, m = res["daily"], res["weekly"], res["monthly"]
-    bh_ret  = d["rb"]
-
-    # Score each frequency
-    rets = {k: res[k]["rs"] for k in res}
-    dds  = {k: res[k]["dd"] for k in res}   # negative; max = least bad
-    ntrs = {k: res[k]["n_trades"] for k in res}
-
-    scores = {k: 0 for k in res}
-    best_r = max(rets, key=rets.get);   scores[best_r] += 3
-    best_d = max(dds,  key=dds.get);   scores[best_d] += 2   # closest to 0
-    best_n = min(ntrs, key=ntrs.get);  scores[best_n] += 1   # fewest trades
-    best   = max(scores, key=scores.get)
-
-    fc = {"daily":CYAN, "weekly":GRN, "monthly":AMB}
-
-    lines = [
-        (CYAN, f"📊 <strong>מסחר יומי:</strong> הניב <strong>{d['rs']:.1f}%</strong> לאחר עמלות "
-               f"(ללא עמלות: {d['rs_nc']:.1f}%). בוצעו {d['n_trades']} עסקאות, "
-               f"עמלות כוללות <strong>${d['tot_cost']:.0f}</strong>. "
-               f"ממוצע זמן החזקה: {hold_str(d['avg_hold'])}."),
-        (GRN,  f"📅 <strong>מסחר שבועי:</strong> הניב <strong>{w['rs']:.1f}%</strong> לאחר עמלות "
-               f"(ללא עמלות: {w['rs_nc']:.1f}%). בוצעו {w['n_trades']} עסקאות, "
-               f"עמלות כוללות <strong>${w['tot_cost']:.0f}</strong>. "
-               f"ממוצע זמן החזקה: {hold_str(w['avg_hold'])}."),
-        (AMB,  f"📆 <strong>מסחר חודשי:</strong> הניב <strong>{m['rs']:.1f}%</strong> לאחר עמלות "
-               f"(ללא עמלות: {m['rs_nc']:.1f}%). בוצעו {m['n_trades']} עסקאות, "
-               f"עמלות כוללות <strong>${m['tot_cost']:.0f}</strong>. "
-               f"ממוצע זמן החזקה: {hold_str(m['avg_hold'])}."),
-        (TX2,  f"📌 <strong>קנה והחזק:</strong> הניב <strong>{bh_ret:.1f}%</strong> "
-               f"ללא עסקאות, ללא עמלות, ללא מעקב."),
-    ]
-
-    fn = {"daily":"יומי","weekly":"שבועי","monthly":"חודשי"}
-    if best == "daily":
-        rec = (f"עבור {sym}, <strong>המסחר היומי</strong> השיג את התשואה הגבוהה ביותר ({d['rs']:.1f}%), "
-               f"אך דרש {d['n_trades']} עסקאות ועמלות של ${d['tot_cost']:.0f}. "
-               f"גישה זו מתאימה למשקיעים פעילים המוכנים לעקוב אחר הפוזיציה מדי יום.")
-    elif best == "weekly":
-        rec = (f"עבור {sym}, <strong>המסחר השבועי</strong> הציג את האיזון האופטימלי — "
-               f"תשואה של {w['rs']:.1f}% עם {w['n_trades']} עסקאות בלבד. "
-               f"גישה זו מתאימה למשקיע שרוצה להיות פעיל מבלי לנטר כל יום.")
-    else:
-        rec = (f"עבור {sym}, <strong>המסחר החודשי</strong> הוכח כגישה היעילה ביותר — "
-               f"תשואה של {m['rs']:.1f}% עם {m['n_trades']} עסקאות ועמלות נמוכות של ${m['tot_cost']:.0f} בלבד. "
-               f"גישה זו מתאימה למשקיע פסיבי שרוצה לנצל אות RSI ללא ניהול צמוד.")
-
-    any_beat_bh = any(res[k]["rs"] > bh_ret for k in res)
-    if not any_beat_bh:
-        rec += (f" <strong>חשוב לציין:</strong> במקרה זה, אסטרטגיית קנה-והחזק ({bh_ret:.1f}%) "
-                f"ניצחה את כל האסטרטגיות הפעילות — {sym} עלתה ברציפות מ-2017, "
-                f"ולכן כניסות ויציאות הפחיתו את התשואה.")
-
-    return lines, rec, best, fc[best]
-
-
-# ── UI helpers ─────────────────────────────────────────────────────────────────
-def fl(n):
-    if n is None: return "—"
-    try: n=float(n)
-    except: return "—"
-    if n>=1e12: return f"${n/1e12:.2f}T"
-    if n>=1e9:  return f"${n/1e9:.2f}B"
-    if n>=1e6:  return f"${n/1e6:.2f}M"
+# ══════════════════════════════════════════════════════════════════════════════
+# HELPERS FOR STOCK DETAIL
+# ══════════════════════════════════════════════════════════════════════════════
+def _fmt_large(n):
+    if n >= 1e12: return f"${n/1e12:.2f}T"
+    if n >= 1e9:  return f"${n/1e9:.1f}B"
+    if n >= 1e6:  return f"${n/1e6:.0f}M"
     return f"${n:,.0f}"
 
-def fp(n):
-    if n is None: return "—"
-    try: return f"{float(n)*100:.1f}%"
-    except: return "—"
+def _gen_summary(df: pd.DataFrame, info: dict, sym: str) -> tuple:
+    """Returns (what_is, behavior, driver, mood) as Hebrew strings."""
+    # 1. What the company does
+    hot_entry = next((s for s in HOT if s["t"] == sym), None)
+    if hot_entry:
+        what_is = hot_entry["w"]
+    else:
+        name     = info.get("longName", sym)
+        sector   = info.get("sector", "")
+        industry = info.get("industry", "")
+        what_is  = f"{name} היא חברה בתחום {sector}."
+        if industry and industry != sector:
+            what_is += f" תחום פעילות עיקרי: {industry}."
 
-def mcard(label, val, sub="", vc=None):
-    vc = vc or TX
-    sh = f'<div style="color:{TX2};font-size:.75rem;margin-top:3px;">{sub}</div>' if sub else ""
-    return f"""<div style="background:{SURF};border:1px solid {BDR};border-radius:12px;
-                   padding:16px 18px;text-align:right;height:100%;">
-      <div style="color:{TX2};font-size:.68rem;font-weight:700;text-transform:uppercase;
-                  letter-spacing:.09em;margin-bottom:6px;">{label}</div>
-      <div style="color:{vc};font-size:1.35rem;font-weight:700;line-height:1.15;">{val}</div>{sh}
-    </div>"""
+    # 2. Stock behavior
+    close = df["Close"].dropna()
+    cl    = float(close.iloc[-1])
+    try:
+        chg1m = (cl / float(close.iloc[-22]) - 1) * 100
+        trend = "עלתה" if chg1m > 0 else "ירדה"
+        behavior = f"בחודש האחרון המניה {trend} ב-{abs(chg1m):.1f}%."
+    except Exception:
+        behavior = ""
+    ma50  = df["MA50"].iloc[-1]  if "MA50"  in df.columns and not pd.isna(df["MA50"].iloc[-1])  else None
+    ma200 = df["MA200"].iloc[-1] if "MA200" in df.columns and not pd.isna(df["MA200"].iloc[-1]) else None
+    if ma50 and ma200:
+        if   cl > ma50 and cl > ma200: behavior += " המחיר מעל שני הממוצעים הנעים — תמונה טכנית חיובית."
+        elif cl < ma50 and cl < ma200: behavior += " המחיר מתחת לשני הממוצעים — לחץ מכירות."
+        else:                          behavior += " המחיר בין הממוצעים — מאבק על כיוון."
 
-def shead(text, icon=""):
-    st.markdown(f"""<div style="display:flex;align-items:center;gap:10px;
-                     margin:4px 0 18px;direction:rtl;">
-      <div style="width:3px;height:22px;background:linear-gradient({CYAN},{PUR});
-                  border-radius:2px;flex-shrink:0;"></div>
-      <span style="font-size:1rem;font-weight:700;color:{TX};">{(icon+' ') if icon else ''}{text}</span>
-    </div>""", unsafe_allow_html=True)
+    # 3. Driver
+    parts = []
+    rv = info.get("revenueGrowth")
+    eg = info.get("earningsGrowth")
+    if rv: parts.append(f"צמיחת הכנסות של {rv*100:.0f}% בשנה האחרונה")
+    if eg: parts.append(f"צמיחת רווח של {eg*100:.0f}%")
+    tgt = info.get("targetMeanPrice")
+    if tgt: parts.append(f"יעד מחיר ממוצע של האנליסטים: ${tgt:,.0f}")
+    driver = (". ".join(parts[:2]) + ".") if parts else "אין מידע זמין על הגורמים המניעים."
 
-def select_t(t): st.session_state["si"] = t
+    # 4. Market mood
+    rsi_v = df["RSI"].iloc[-1] if "RSI" in df.columns and not pd.isna(df["RSI"].iloc[-1]) else None
+    rec   = info.get("recommendationKey", "")
+    rec_map = {"strong_buy":"קנייה חזקה","buy":"קנייה","hold":"המתנה",
+               "underperform":"ביצוע נמוך","sell":"מכירה"}
+    mood_parts = []
+    if rec: mood_parts.append(f"המלצת אנליסטים: {rec_map.get(rec, rec)}")
+    if rsi_v:
+        if   rsi_v < 30: mood_parts.append(f"RSI {rsi_v:.0f} — מכירת יתר, עשויה להתאושש")
+        elif rsi_v > 70: mood_parts.append(f"RSI {rsi_v:.0f} — קניית יתר, ייתכן תיקון")
+        else:            mood_parts.append(f"RSI {rsi_v:.0f} — אזור ניטרלי")
+    mood = ". ".join(mood_parts) + "." if mood_parts else "אין מידע על סנטימנט השוק."
+    return what_is, behavior, driver, mood
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# APP
-# ══════════════════════════════════════════════════════════════════════════════
-inject_css()
-
-st.markdown(f"""<div style="padding:36px 0 10px;text-align:center;">
-  <div style="font-size:2rem;font-weight:900;color:{TX};letter-spacing:-.5px;">📈 מנתח מניות</div>
-  <div style="color:{TX2};font-size:.88rem;margin-top:6px;">
-    ניתוח טכני ופונדמנטלי בזמן אמת · AI · מוליכים למחצה · סייבר · ענן
-  </div>
-</div>""", unsafe_allow_html=True)
-
-_, sc, _ = st.columns([1,2,1])
-with sc:
-    st.markdown('<div class="sw">', unsafe_allow_html=True)
-    sym_in = st.text_input("s", value="", key="si",
-                            placeholder="הקלד סימול מניה ולחץ Enter  (לדוגמה: MRVL, NVDA, CRWD)",
-                            label_visibility="hidden")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-_, pc, _ = st.columns([1,1,1])
-with pc:
-    period = st.selectbox("p", ["1mo","3mo","6mo","1y","2y","5y"], index=3,
-                           format_func=lambda x:{"1mo":"חודש","3mo":"3 חודשים","6mo":"6 חודשים",
-                                                  "1y":"שנה","2y":"שנתיים","5y":"5 שנים"}[x],
-                           label_visibility="collapsed")
-
-sym = sym_in.upper().strip()
-
-# ── Landing ────────────────────────────────────────────────────────────────────
-if not sym:
-    st.markdown(f"""<div style="text-align:center;padding:36px 0 20px;">
-      <div style="font-size:2.4rem;margin-bottom:12px;">🔍</div>
-      <div style="color:{TX};font-size:1.05rem;font-weight:600;margin-bottom:6px;">חפש מניית צמיחה כדי להתחיל</div>
-      <div style="color:{TX2};font-size:.86rem;">ניתוח טכני מלא · המלצה עם הסבר מפורט · בדיקת אחור מ-2017</div>
-    </div>""", unsafe_allow_html=True)
-
-    st.markdown(f"""<div style="text-align:center;margin-bottom:16px;">
-      <span style="background:{SURF};border:1px solid {BDR};border-radius:20px;
-                   padding:5px 16px;font-size:.78rem;color:{TX2};">
-        ✨ מניות צמיחה מובילות — לחץ כדי לנתח
-      </span>
-    </div>""", unsafe_allow_html=True)
-
-    for ri in range(0, len(GROWTH), 5):
-        row = GROWTH[ri:ri+5]
-        cols = st.columns(len(row))
-        for col, s in zip(cols, row):
-            with col:
-                st.markdown(f"""<div style="background:{SURF};border:1px solid {BDR};
-                  border-top:3px solid {s['a']};border-radius:0 0 12px 12px;
-                  padding:14px 12px 10px;text-align:center;margin-bottom:4px;">
-                  <div style="font-size:1.2rem;font-weight:900;color:{TX};letter-spacing:1px;">{s['t']}</div>
-                  <div style="font-size:.65rem;font-weight:700;color:{s['a']};margin-top:3px;
-                              text-transform:uppercase;letter-spacing:.06em;">{s['c']}</div>
-                  <div style="font-size:.72rem;color:{TX2};margin-top:5px;line-height:1.35;
-                              direction:rtl;">{s['d']}</div>
-                </div>""", unsafe_allow_html=True)
-                st.markdown('<div class="gsb">', unsafe_allow_html=True)
-                st.button("נתח ←", key=f"l_{s['t']}", on_click=select_t,
-                          args=(s['t'],), use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-    st.stop()
-
-# ── Fetch ──────────────────────────────────────────────────────────────────────
-with st.spinner(f"טוען נתונים עבור {sym}…"):
-    df   = fetch_history(sym, period)
-    info = fetch_info(sym)
-
-if df.empty:
-    st.error(f"לא נמצאו נתונים עבור **{sym}**. בדוק את הסימול ונסה שנית.")
-    st.stop()
-
-co  = info.get("longName") or sym
-cl  = df["Close"].iloc[-1]
-pv  = df["Close"].iloc[-2]
-ch  = cl-pv; chp = ch/pv*100
-chc = GRN if ch>=0 else RED
-arr = "▲" if ch>=0 else "▼"
-
-# ── Stock header ───────────────────────────────────────────────────────────────
-st.markdown(f"""<div style="background:linear-gradient(135deg,{SURF} 0%,{SURF2} 100%);
-  border:1px solid {BDR};border-radius:14px;padding:22px 26px;margin:16px 0;
-  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-  <div>
-    <div style="font-size:1.5rem;font-weight:800;color:{TX};">{co}</div>
-    <div style="color:{TX2};font-size:.83rem;margin-top:3px;">
-      {info.get('sector','')}{(' · '+info.get('industry','')) if info.get('industry') else ''}
-    </div>
-  </div>
-  <div style="text-align:left;">
-    <div style="font-size:2.4rem;font-weight:900;color:{TX};line-height:1;">${cl:.2f}</div>
-    <div style="color:{chc};font-size:.95rem;font-weight:700;text-align:left;margin-top:2px;">
-      {arr} {abs(ch):.2f} &nbsp;({abs(chp):.2f}%)
-    </div>
-  </div>
-</div>""", unsafe_allow_html=True)
-
-# ── 4 metrics ──────────────────────────────────────────────────────────────────
-m1,m2,m3,m4 = st.columns(4)
-rsi_now = df["RSI"].iloc[-1]
-for col, label, val, vc in [
-    (m1, "שווי שוק",       fl(info.get("marketCap")),     TX),
-    (m2, "שיא 52 שבועות",  f"${df['Close'].max():.2f}",  TX),
-    (m3, "שפל 52 שבועות",  f"${df['Close'].min():.2f}",  TX),
-    (m4, "מכפיל רווח",     f"{info.get('trailingPE'):.1f}x" if info.get("trailingPE") else "—", TX),
-]:
-    col.markdown(mcard(label, val, vc=vc), unsafe_allow_html=True)
-
-# ── Quick-switch ───────────────────────────────────────────────────────────────
-st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-with st.expander("✨ החלף מניה — מניות צמיחה מוצעות"):
-    sw = st.columns(len(GROWTH))
-    for col, s in zip(sw, GROWTH):
-        with col:
-            active = s["t"] == sym
-            st.markdown(f"""<div style="text-align:center;font-size:.62rem;
-              color:{'#7dcfef' if active else TX2};margin-bottom:2px;">
-              {'● ' if active else ''}{s['n']}</div>""", unsafe_allow_html=True)
-            st.markdown('<div class="gsb">', unsafe_allow_html=True)
-            st.button(s["t"], key=f"sw_{s['t']}", on_click=select_t,
-                      args=(s["t"],), use_container_width=True, disabled=active)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-
-# ── Tabs ───────────────────────────────────────────────────────────────────────
-t1, t2, t3 = st.tabs(["📊  ניתוח טכני", "🏦  פונדמנטלי", "🔬  בדיקת אחור"])
 
 # ══════════════════════════════════════════════════════════════════════════════
-with t1:
-    label, lc, sigs, score = get_rec(df, info)
+# STOCK DETAIL PANEL (used on home page)
+# ══════════════════════════════════════════════════════════════════════════════
+def _stock_detail(sym: str):
+    watchlist = load_json(WL_FILE)
 
-    # ── Chart: 3 panels (price + volume + RSI) ─────────────────────────────────
-    shead("גרף מחיר")
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True,
-                        row_heights=[.60, .14, .26], vertical_spacing=.03)
+    # ── Period selector ───────────────────────────────────────────────────────
+    per_key = f"det_period_{sym}"
+    if per_key not in st.session_state:
+        st.session_state[per_key] = "6mo"
 
+    st.markdown(f"""<div style="background:{SURF};border:2px solid {BDR2};
+        border-radius:16px;padding:22px 26px;margin-top:6px;direction:rtl;">
+    """, unsafe_allow_html=True)
+
+    # Header row: title + action buttons
+    hc1, hc2, hc3, hc4, _ = st.columns([1.8, 1.1, 1.1, 0.9, 2])
+    with hc1:
+        st.markdown(f"<div style='font-size:1.2rem;font-weight:800;color:{CYAN};"
+                    f"padding-top:6px;'>📊 ניתוח — {sym}</div>",
+                    unsafe_allow_html=True)
+    with hc2:
+        in_wl = sym in watchlist
+        if st.button("✓ במעקב" if in_wl else "👁️ הוסף למעקב",
+                     key=f"det_wl_{sym}", use_container_width=True,
+                     type="secondary" if in_wl else "primary"):
+            if not in_wl:
+                watchlist.append(sym)
+                save_json(WL_FILE, watchlist)
+                st.rerun()
+    with hc3:
+        if st.button("💼 הוסף לתיק", key=f"det_pf_{sym}",
+                     use_container_width=True):
+            st.session_state["pf_prefill"] = sym
+            st.session_state["page"] = "portfolio"
+            st.rerun()
+    with hc4:
+        if st.button("✕ סגור", key=f"det_close_{sym}",
+                     use_container_width=True):
+            st.session_state["home_selected"] = None
+            st.rerun()
+
+    # ── Load data ─────────────────────────────────────────────────────────────
+    period = st.session_state[per_key]
+    with st.spinner(f"טוען נתונים עבור {sym}…"):
+        df   = fetch_history(sym, period)
+        info = fetch_info(sym)
+        news = fetch_news(sym)
+        cal  = fetch_calendar(sym)
+
+    if df.empty:
+        st.error(f"לא נמצאו נתונים עבור {sym}.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        return
+
+    cl      = float(df["Close"].iloc[-1])
+    prev_cl = float(df["Close"].iloc[-2]) if len(df) > 1 else cl
+    chg_pct = (cl - prev_cl) / prev_cl * 100
+    chg_c   = GRN if chg_pct >= 0 else RED
+    rsi_val = float(df["RSI"].iloc[-1]) if "RSI" in df.columns else float("nan")
+    ma50    = float(df["MA50"].iloc[-1])  if "MA50"  in df.columns and not pd.isna(df["MA50"].iloc[-1])  else None
+    ma200   = float(df["MA200"].iloc[-1]) if "MA200" in df.columns and not pd.isna(df["MA200"].iloc[-1]) else None
+
+    if   rsi_val < 35: rsi_sig, rsi_c = "קנייה",  GRN
+    elif rsi_val > 65: rsi_sig, rsi_c = "מכירה",  RED
+    else:              rsi_sig, rsi_c = "המתנה",  AMB
+
+    # ── Key metrics cards ─────────────────────────────────────────────────────
+    mc_items = [
+        ("מחיר",       f"${cl:,.2f}",          TX),
+        ("שינוי יומי", f"{'+'if chg_pct>=0 else ''}{chg_pct:.2f}%", chg_c),
+        ("RSI",        f"{rsi_val:.0f}" if not np.isnan(rsi_val) else "—", rsi_c),
+        ("אות",        rsi_sig,           rsi_c),
+        ("MA 50",      f"${ma50:,.2f}"  if ma50  else "—", CYAN),
+        ("MA 200",     f"${ma200:,.2f}" if ma200 else "—", AMB),
+    ]
+    if info.get("trailingPE"):
+        mc_items.append(("מכפיל P/E", f"{info['trailingPE']:.1f}", TX2))
+    if info.get("marketCap"):
+        mc_items.append(("שווי שוק", _fmt_large(info["marketCap"]), TX2))
+    if info.get("trailingEps"):
+        mc_items.append(("EPS", f"${info['trailingEps']:.2f}", TX2))
+    if info.get("dividendYield"):
+        mc_items.append(("דיבידנד", f"{info['dividendYield']*100:.1f}%", TX2))
+    if "Volatility30" in df.columns and not pd.isna(df["Volatility30"].iloc[-1]):
+        vol30 = float(df["Volatility30"].iloc[-1])
+        mc_items.append(("תנודתיות 30י׳", f"{vol30:.0f}%", AMB))
+    if "Vol_ratio" in df.columns and not pd.isna(df["Vol_ratio"].iloc[-1]):
+        vr = float(df["Vol_ratio"].iloc[-1])
+        mc_items.append(("נפח (x ממוצע)", f"{vr:.1f}x", GRN if vr > 1.5 else TX2))
+    earnings_dt = cal.get("earnings_date")
+    if earnings_dt:
+        days_to_earn = (pd.Timestamp(earnings_dt) - pd.Timestamp(datetime.now())).days
+        if 0 <= days_to_earn <= 60:
+            earn_c = RED if days_to_earn <= 14 else AMB
+            mc_items.append(("דוח רווחים", f"עוד {days_to_earn} י׳", earn_c))
+
+    mcols = st.columns(len(mc_items))
+    for col, (lbl, val, vc) in zip(mcols, mc_items):
+        col.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+            border-radius:10px;padding:10px 8px;text-align:center;direction:rtl;
+            margin-bottom:4px;">
+            <div style="font-size:.68rem;color:{TX3};margin-bottom:4px;">{lbl}</div>
+            <div style="font-size:.92rem;font-weight:700;color:{vc};">{val}</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+    # ── "מה המניה עושה?" summary ──────────────────────────────────────────────
+    what_is, behavior, driver, mood = _gen_summary(df, info, sym)
+    st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+        border-radius:12px;padding:16px 20px;margin-bottom:14px;direction:rtl;">
+        <div style="font-size:.9rem;font-weight:700;color:{TX};margin-bottom:12px;">
+            📋 מה המניה עושה?
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="border-right:3px solid {CYAN};padding:8px 12px;
+                        background:{BG};border-radius:0 8px 8px 0;">
+                <div style="font-size:.72rem;color:{CYAN};font-weight:700;
+                            margin-bottom:4px;">🏢 מה החברה עושה?</div>
+                <div style="font-size:.82rem;color:{TX};line-height:1.6;">{what_is}</div>
+            </div>
+            <div style="border-right:3px solid {AMB};padding:8px 12px;
+                        background:{BG};border-radius:0 8px 8px 0;">
+                <div style="font-size:.72rem;color:{AMB};font-weight:700;
+                            margin-bottom:4px;">📈 מה המניה עושה לאחרונה?</div>
+                <div style="font-size:.82rem;color:{TX};line-height:1.6;">{behavior}</div>
+            </div>
+            <div style="border-right:3px solid {GRN};padding:8px 12px;
+                        background:{BG};border-radius:0 8px 8px 0;">
+                <div style="font-size:.72rem;color:{GRN};font-weight:700;
+                            margin-bottom:4px;">🔍 מה מניע אותה?</div>
+                <div style="font-size:.82rem;color:{TX};line-height:1.6;">{driver}</div>
+            </div>
+            <div style="border-right:3px solid {PUR};padding:8px 12px;
+                        background:{BG};border-radius:0 8px 8px 0;">
+                <div style="font-size:.72rem;color:{PUR};font-weight:700;
+                            margin-bottom:4px;">🌡️ סנטימנט השוק</div>
+                <div style="font-size:.82rem;color:{TX};line-height:1.6;">{mood}</div>
+            </div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Period buttons ────────────────────────────────────────────────────────
+    pb_cols = st.columns([3, 1, 1, 1, 1])
+    pb_cols[0].markdown(f"<div style='color:{TX2};font-size:.82rem;"
+                        f"padding-top:8px;direction:rtl;'>תקופה:</div>",
+                        unsafe_allow_html=True)
+    for col, (lbl, val) in zip(pb_cols[1:], [("1M","1mo"),("3M","3mo"),
+                                               ("6M","6mo"),("1Y","1y")]):
+        if col.button(lbl, key=f"per_{sym}_{val}", use_container_width=True,
+                      type="primary" if period == val else "secondary"):
+            st.session_state[per_key] = val
+            fetch_history.clear()
+            st.rerun()
+
+    # ── Candlestick chart ─────────────────────────────────────────────────────
+    from plotly.subplots import make_subplots
+    fig = make_subplots(
+        rows=3, cols=1,
+        row_heights=[0.55, 0.25, 0.20],
+        shared_xaxes=True,
+        vertical_spacing=0.03,
+    )
+
+    # Candlestick
     fig.add_trace(go.Candlestick(
-        x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"],
-        name="מחיר", increasing_line_color=GRN, decreasing_line_color=RED,
-        increasing_fillcolor=GRN, decreasing_fillcolor=RED,
-    ), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["MA50"],  name="MA 50",
-                              line=dict(color=CYAN, width=1.6)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["MA200"], name="MA 200",
-                              line=dict(color=AMB, width=1.6)), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=pd.concat([df.index.to_series(), df.index.to_series()[::-1]]),
-        y=pd.concat([df["BBU"], df["BBL"][::-1]]),
-        fill="toself", fillcolor="rgba(167,139,250,.05)",
-        line=dict(color="rgba(0,0,0,0)"), name="בולינגר",
+        x=df.index,
+        open=df["Open"], high=df["High"],
+        low=df["Low"],   close=df["Close"],
+        name="מחיר",
+        increasing_line_color=GRN, decreasing_line_color=RED,
+        increasing_fillcolor="rgba(34,197,94,0.33)",
+        decreasing_fillcolor="rgba(239,68,68,0.33)",
     ), row=1, col=1)
 
-    # Volume
-    vol_colors = [GRN if df["Close"].iloc[i] >= df["Open"].iloc[i] else RED
-                  for i in range(len(df))]
-    fig.add_trace(go.Bar(x=df.index, y=df["Volume"], name="נפח",
-                          marker_color=vol_colors, marker_opacity=.5,
-                          showlegend=False), row=2, col=1)
+    # Bollinger Bands
+    if "BB_U" in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df["BB_U"], name="BB עליון",
+            line=dict(color=TX3, width=1, dash="dot")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["BB_L"], name="BB תחתון",
+            line=dict(color=TX3, width=1, dash="dot"),
+            fill="tonexty", fillcolor="rgba(107,155,192,.05)"), row=1, col=1)
+    if ma50:
+        fig.add_trace(go.Scatter(x=df.index, y=df["MA50"], name="MA 50",
+            line=dict(color=AMB, width=1.5)), row=1, col=1)
+    if ma200:
+        fig.add_trace(go.Scatter(x=df.index, y=df["MA200"], name="MA 200",
+            line=dict(color=PUR, width=1.5)), row=1, col=1)
 
     # RSI
-    fig.add_trace(go.Scatter(x=df.index, y=df["RSI"], name="RSI",
-                              line=dict(color=PUR, width=1.5),
-                              fill="tozeroy", fillcolor=PDIM), row=3, col=1)
-    fig.add_hline(y=70, line_dash="dot", line_color=RED,  line_width=1, row=3, col=1)
-    fig.add_hline(y=30, line_dash="dot", line_color=GRN,  line_width=1, row=3, col=1)
-    fig.add_hrect(y0=30, y1=70, fillcolor=PDIM, line_width=0, row=3, col=1)
+    if "RSI" in df.columns:
+        fig.add_hrect(y0=65, y1=100, fillcolor="rgba(239,68,68,0.07)",
+                      line_width=0, row=2, col=1)
+        fig.add_hrect(y0=0, y1=35, fillcolor="rgba(34,197,94,0.07)",
+                      line_width=0, row=2, col=1)
+        fig.add_hline(y=65, line=dict(color=RED, dash="dot", width=1), row=2, col=1)
+        fig.add_hline(y=35, line=dict(color=GRN, dash="dot", width=1), row=2, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["RSI"], name="RSI",
+            line=dict(color=PUR, width=1.8)), row=2, col=1)
 
-    fig.update_layout(**{**PB, "height": 620, "xaxis_rangeslider_visible": False,
-                          "yaxis2": dict(title="נפח", gridcolor=BDR, tickfont=dict(color=TX2), showgrid=False),
-                          "yaxis3": dict(title="RSI", range=[0,100], gridcolor=BDR, tickfont=dict(color=TX2))})
+    # MACD
+    if "MACD" in df.columns:
+        colors = [GRN if v >= 0 else RED for v in df["MACD_H"].fillna(0)]
+        fig.add_trace(go.Bar(x=df.index, y=df["MACD_H"], name="MACD Hist",
+            marker_color=colors, opacity=0.7), row=3, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["MACD"], name="MACD",
+            line=dict(color=CYAN, width=1.5)), row=3, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["MACD_S"], name="Signal",
+            line=dict(color=AMB, width=1.5)), row=3, col=1)
+
+    fig.update_layout(
+        **{**PB, "height": 560},
+        xaxis_rangeslider_visible=False,
+        yaxis_title="מחיר ($)",
+        yaxis2_title="RSI",
+        yaxis3_title="MACD",
+    )
+    fig.update_yaxes(range=[0, 100], row=2, col=1)
     st.plotly_chart(fig, use_container_width=True)
 
-    # ── Recommendation row ─────────────────────────────────────────────────────
-    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-    shead("המלצה וסיגנלים")
+    # ── Fundamentals ─────────────────────────────────────────────────────────
+    fund_items = []
+    pairs = [
+        ("הכנסות (TTM)",   info.get("totalRevenue"),       _fmt_large),
+        ("שוליים נטו",     info.get("profitMargins"),      lambda v: f"{v*100:.1f}%"),
+        ("צמיחת הכנסות",   info.get("revenueGrowth"),      lambda v: f"{v*100:.1f}%"),
+        ("צמיחת רווח",     info.get("earningsGrowth"),     lambda v: f"{v*100:.1f}%"),
+        ("P/S",            info.get("priceToSalesTrailing12Months"), lambda v: f"{v:.1f}x"),
+        ("P/B",            info.get("priceToBook"),        lambda v: f"{v:.1f}x"),
+        ("EBITDA",         info.get("ebitda"),             _fmt_large),
+        ("מזומן",          info.get("totalCash"),          _fmt_large),
+        ("חוב כולל",       info.get("totalDebt"),          _fmt_large),
+        ("החזר הון (ROE)",  info.get("returnOnEquity"),    lambda v: f"{v*100:.1f}%"),
+    ]
+    for lbl, val, fmt in pairs:
+        if val:
+            try:   fund_items.append((lbl, fmt(val)))
+            except: pass
 
-    rc1, rc2 = st.columns([2, 3])
-    with rc1:
-        bar_h, rsi_h, ma_h, fund_h, risk_h = gen_explain(df, info, label, score)
-        st.markdown(bar_h, unsafe_allow_html=True)
+    if fund_items:
+        st.markdown(f"<div style='font-weight:700;color:{TX};font-size:.92rem;"
+                    f"direction:rtl;margin:8px 0 10px;'>💰 נתונים פונדמנטליים</div>",
+                    unsafe_allow_html=True)
+        n = len(fund_items)
+        fcols = st.columns(min(n, 5))
+        for idx, (lbl, val) in enumerate(fund_items):
+            fcols[idx % len(fcols)].markdown(
+                f"""<div style="background:{SURF2};border:1px solid {BDR};
+                    border-radius:9px;padding:9px 10px;text-align:center;
+                    direction:rtl;margin-bottom:6px;">
+                    <div style="font-size:.67rem;color:{TX3};margin-bottom:3px;">{lbl}</div>
+                    <div style="font-size:.88rem;font-weight:700;color:{TX};">{val}</div>
+                </div>""", unsafe_allow_html=True)
 
-    with rc2:
-        buls = ""
-        for pos, txt in sigs:
-            dot = f"<span style='color:{GRN}'>●</span>" if pos is True \
-                  else f"<span style='color:{RED}'>●</span>" if pos is False \
-                  else f"<span style='color:{TX2}'>●</span>"
-            buls += f"""<div style="display:flex;align-items:center;gap:8px;
-              padding:8px 12px;border-bottom:1px solid {BDR};direction:rtl;">
-              {dot}
-              <span style="font-size:.85rem;color:{TX};">{txt}</span>
-            </div>"""
-        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-          border-radius:12px;overflow:hidden;">{buls}</div>""", unsafe_allow_html=True)
-
-    # ── Detailed explanation ───────────────────────────────────────────────────
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    shead("הסבר מפורט")
-
-    # Summary
-    lco = {"קנה":GRN,"מכור":RED,"המתן":AMB}[label]
-    why = ("האינדיקטורים הטכניים מצביעים על הזדמנות כניסה פוטנציאלית: RSI נמוך ו/או מחיר מעל הממוצעים הנעים."
-           if label=="קנה" else
-           "מספר אינדיקטורים מצביעים על עייפות בעלייה ועל לחץ מכירות אפשרי."
-           if label=="מכור" else
-           "הסיגנלים הטכניים מעורבים — חלקם חיוביים וחלקם שליליים. עדיף להמתין לאישור כיוון ברור.")
-    st.markdown(f"""<div style="background:rgba({
-        '34,197,94' if label=='קנה' else '239,68,68' if label=='מכור' else '245,158,11'
-    },.07);border:1px solid {lco}33;border-radius:12px;
-    padding:18px 22px;margin-bottom:16px;direction:rtl;">
-      <div style="font-size:.95rem;font-weight:700;color:{lco};margin-bottom:6px;">
-        {'📥 מדוע כדאי לשקול קנייה?' if label=='קנה' else '📤 מדוע כדאי לשקול מכירה?' if label=='מכור' else '⏸️ מדוע כדאי להמתין?'}
-      </div>
-      <div style="color:{TX};font-size:.88rem;line-height:1.7;">{why}</div>
-    </div>""", unsafe_allow_html=True)
-
-    e1, e2, e3 = st.columns(3)
-    with e1: st.markdown(rsi_h,  unsafe_allow_html=True)
-    with e2: st.markdown(ma_h,   unsafe_allow_html=True)
-    with e3: st.markdown(fund_h, unsafe_allow_html=True)
-
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    st.markdown(risk_h, unsafe_allow_html=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-with t2:
-    shead("נתונים פיננסיים")
-    fa, fb_, fc = st.columns(3)
-
-    with fa:
-        st.markdown(f"<div style='color:{TX2};font-size:.78rem;font-weight:700;margin-bottom:10px;'>הערכת שווי</div>", unsafe_allow_html=True)
-        pe=info.get("trailingPE"); fpe=info.get("forwardPE")
-        pb_=info.get("priceToBook"); ps=info.get("priceToSalesTrailing12Months")
-        for lbl, v in [("מכפיל רווח",f"{pe:.2f}" if pe else "—"),
-                        ("מכפיל רווח עתידי",f"{fpe:.2f}" if fpe else "—"),
-                        ("מחיר / ספר",f"{pb_:.2f}" if pb_ else "—"),
-                        ("מחיר / מכירות",f"{ps:.2f}" if ps else "—")]:
-            st.markdown(mcard(lbl,v)+"<div style='height:8px'></div>", unsafe_allow_html=True)
-
-    with fb_:
-        st.markdown(f"<div style='color:{TX2};font-size:.78rem;font-weight:700;margin-bottom:10px;'>תוצאות עסקיות</div>", unsafe_allow_html=True)
-        rev=info.get("totalRevenue"); ni=info.get("netIncomeToCommon")
-        eb=info.get("ebitda"); mg=info.get("profitMargins")
-        for lbl, v, vc in [("הכנסות",fl(rev),TX),
-                             ("רווח נקי",fl(ni), GRN if ni and ni>0 else RED if ni else TX),
-                             ("EBITDA",fl(eb),TX),
-                             ("שולי רווח",fp(mg), GRN if mg and mg>0 else TX)]:
-            st.markdown(mcard(lbl,v,vc=vc)+"<div style='height:8px'></div>", unsafe_allow_html=True)
-
-    with fc:
-        st.markdown(f"<div style='color:{TX2};font-size:.78rem;font-weight:700;margin-bottom:10px;'>צמיחה ודיבידנד</div>", unsafe_allow_html=True)
-        dy=info.get("dividendYield"); eps=info.get("trailingEps")
-        rg=info.get("revenueGrowth"); eg=info.get("earningsGrowth")
-        for lbl, v, vc in [("תשואת דיבידנד",fp(dy) if dy else "—",TX),
-                             ("רווח למניה (EPS)",f"${eps:.2f}" if eps else "—",TX),
-                             ("צמיחת הכנסות",fp(rg), GRN if rg and rg>0 else RED if rg else TX),
-                             ("צמיחת רווח",fp(eg), GRN if eg and eg>0 else RED if eg else TX)]:
-            st.markdown(mcard(lbl,v,vc=vc)+"<div style='height:8px'></div>", unsafe_allow_html=True)
-
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-    shead("הכנסות ורווח שנתי")
-    try:
-        fin = fetch_fin(sym)
-        if fin is not None and not fin.empty:
-            rr = fin.loc["Total Revenue"] if "Total Revenue" in fin.index else None
-            ir = fin.loc["Net Income"]    if "Net Income"    in fin.index else None
-            if rr is not None:
-                yrs = [str(d.year) for d in rr.index]
-                fig2 = go.Figure()
-                fig2.add_trace(go.Bar(x=yrs, y=rr.values/1e9, name="הכנסות ($B)",
-                                       marker_color=CYAN, marker_opacity=.8))
-                if ir is not None:
-                    fig2.add_trace(go.Bar(x=yrs, y=ir.values/1e9, name="רווח נקי ($B)",
-                                           marker_color=GRN, marker_opacity=.8))
-                fig2.update_layout(**{**PB,"height":300,"barmode":"group","yaxis_title":"מיליארד $"})
-                st.plotly_chart(fig2, use_container_width=True)
-            else: st.info("נתונים שנתיים אינם זמינים.")
-        else: st.info("נתונים שנתיים אינם זמינים.")
-    except: st.info("לא ניתן לטעון נתונים שנתיים.")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-with t3:
-    # ── Header card ────────────────────────────────────────────────────────────
-    st.markdown(f"""<div style="background:{CDIM};border:1px solid rgba(0,180,216,.25);
-      border-radius:10px;padding:14px 20px;margin-bottom:20px;direction:rtl;">
-      <div style="font-weight:800;color:{TX};font-size:1rem;margin-bottom:6px;">
-        🔬 בדיקת אחור — השוואת תדירויות מסחר
-      </div>
-      <div style="color:{TX2};font-size:.84rem;line-height:1.6;">
-        <strong style="color:{CYAN}">אסטרטגיה:</strong> קנה כאשר RSI &lt; 30 · מכור כאשר RSI &gt; 70
-        &nbsp;|&nbsp; <strong style="color:{CYAN}">תקופה:</strong> ינואר 2017 – היום
-        &nbsp;|&nbsp; <strong style="color:{AMB}">עמלות:</strong> 0.1% לכל עסקה
-      </div>
-    </div>""", unsafe_allow_html=True)
-
-    # ── Settings ───────────────────────────────────────────────────────────────
-    bc, _ = st.columns([1, 2])
-    with bc:
-        initial = st.number_input("סכום השקעה התחלתי ($)",
-                                   min_value=100, max_value=10_000_000,
-                                   value=10_000, step=1000)
-
-    with st.spinner("מריץ סימולציה לשלוש תדירויות…"):
-        bt_df = fetch_bt(sym)
-
-    if bt_df.empty:
-        st.error("לא ניתן לטעון נתוני עבר.")
-    else:
-        amt = float(initial)
-        all_bt = {
-            "daily":   run_bt_v2(bt_df, amt, "daily"),
-            "weekly":  run_bt_v2(bt_df, amt, "weekly"),
-            "monthly": run_bt_v2(bt_df, amt, "monthly"),
-        }
-        lines_sum, rec_text, best_freq, best_color = gen_freq_summary(all_bt, sym)
-
-        # ── Comparison chart ───────────────────────────────────────────────────
-        shead("גרף השוואה — כל התדירויות")
-        fig3 = go.Figure()
-
-        # Buy & Hold (background reference)
-        fig3.add_trace(go.Scatter(
-            x=bt_df.index, y=all_bt["daily"]["bh"], name="קנה והחזק",
-            line=dict(color=TX2, width=1.5, dash="dot"),
-            fill="tozeroy", fillcolor="rgba(107,155,192,.03)",
-        ))
-        # 3 strategy lines
-        for freq, color, name, dash in [
-            ("monthly", AMB,  "מסחר חודשי",  "solid"),
-            ("weekly",  GRN,  "מסחר שבועי",  "solid"),
-            ("daily",   CYAN, "מסחר יומי",   "solid"),
-        ]:
-            fig3.add_trace(go.Scatter(
-                x=bt_df.index, y=all_bt[freq]["port"], name=name,
-                line=dict(color=color, width=2.2 if freq==best_freq else 1.5, dash=dash),
-            ))
-
-        # Buy/sell markers for best frequency only
-        bf = all_bt[best_freq]
-        if bf["buys"]:
-            bx, by = zip(*bf["buys"])
-            fig3.add_trace(go.Scatter(
-                x=list(bx), y=list(by), mode="markers",
-                name=f"קנייה ({{'daily':'יומי','weekly':'שבועי','monthly':'חודשי'}}[best_freq])",
-                marker=dict(symbol="triangle-up", color=GRN, size=8,
-                            line=dict(color=BG, width=1)),
-            ))
-        if bf["sells"]:
-            sx, sy = zip(*bf["sells"])
-            fig3.add_trace(go.Scatter(
-                x=list(sx), y=list(sy), mode="markers",
-                name=f"מכירה",
-                marker=dict(symbol="triangle-down", color=RED, size=8,
-                            line=dict(color=BG, width=1)),
-            ))
-
-        fig3.update_layout(**{**PB, "height": 420, "yaxis_title": "שווי תיק ($)"})
-        st.plotly_chart(fig3, use_container_width=True)
-
-        # ── 3 comparison cards ─────────────────────────────────────────────────
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-        shead("השוואת תדירויות")
-
-        freq_meta = [
-            ("daily",   CYAN, "📊 מסחר יומי",   "בדיקת אות כל יום מסחר"),
-            ("weekly",  GRN,  "📅 מסחר שבועי",  "בדיקת אות כל יום שני"),
-            ("monthly", AMB,  "📆 מסחר חודשי",  "בדיקת אות ראשון בחודש"),
-        ]
-        cc1, cc2, cc3 = st.columns(3)
-        for col, (freq, color, title, subtitle) in zip([cc1,cc2,cc3], freq_meta):
-            bt  = all_bt[freq]
-            is_best = (freq == best_freq)
-            rc  = GRN if bt["rs"] >= 0 else RED
-
-            best_badge = (f'<div style="background:{color};color:{BG};font-size:.7rem;'
-                          f'font-weight:800;text-align:center;padding:5px 0;letter-spacing:.5px;">'
-                          f'⭐ ביצועים מיטביים</div>') if is_best else ""
-
-            def row(lbl, val, vc=TX):
-                return (f'<div style="display:flex;justify-content:space-between;'
-                        f'align-items:center;padding:8px 14px;border-bottom:1px solid {BDR};'
-                        f'direction:rtl;">'
-                        f'<span style="color:{TX2};font-size:.78rem;">{lbl}</span>'
-                        f'<span style="color:{vc};font-size:.84rem;font-weight:700;">{val}</span>'
-                        f'</div>')
-
-            rows_html = "".join([
-                row("תשואה (עם עמלות)",    f"{bt['rs']:+.1f}%",          GRN if bt['rs']>=0 else RED),
-                row("תשואה (ללא עמלות)",   f"{bt['rs_nc']:+.1f}%",       TX2),
-                row("השפעת עמלות",          f"-${bt['cost_impact']:.0f}", RED),
-                row("עמלות ששולמו",         f"${bt['tot_cost']:.0f}",     TX2),
-                row("עסקאות (קנייה/מכירה)", f"{bt['nb']} / {bt['ns']}",  TX),
-                row("ממוצע זמן החזקה",      hold_str(bt['avg_hold']),     TX),
-                row("מקסימום ירידה",         f"{bt['dd']:.1f}%",           RED),
-            ])
-
-            col.markdown(f"""<div style="background:{SURF};
-              border:1px solid {'color' if is_best else BDR};
-              border:1px solid {color if is_best else BDR};
-              border-radius:12px;overflow:hidden;height:100%;">
-              {best_badge}
-              <div style="padding:14px 16px 10px;border-bottom:1px solid {BDR};
-                          text-align:center;direction:rtl;">
-                <div style="font-size:1.25rem;font-weight:900;color:{color};">{title}</div>
-                <div style="font-size:.72rem;color:{TX2};margin-top:3px;">{subtitle}</div>
-              </div>
-              {rows_html}
+    # ── News ──────────────────────────────────────────────────────────────────
+    if news:
+        st.markdown(f"<div style='font-weight:700;color:{TX};font-size:.92rem;"
+                    f"direction:rtl;margin:12px 0 10px;'>📰 חדשות אחרונות</div>",
+                    unsafe_allow_html=True)
+        for item in news[:4]:
+            title     = item.get("title", "")
+            link      = item.get("link", "#")
+            publisher = item.get("publisher", "")
+            pub_ts    = item.get("providerPublishTime", 0)
+            if pub_ts:
+                dt_str = datetime.fromtimestamp(pub_ts).strftime("%d/%m %H:%M")
+            else:
+                dt_str = ""
+            if not title:
+                continue
+            st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+                border-right:3px solid {CYAN};border-radius:0 9px 9px 0;
+                padding:10px 14px;margin-bottom:7px;direction:ltr;">
+                <a href="{link}" target="_blank"
+                   style="color:{TX};font-size:.83rem;font-weight:600;
+                          text-decoration:none;line-height:1.5;">{title}</a>
+                <div style="font-size:.7rem;color:{TX3};margin-top:4px;">
+                    {publisher}{"&nbsp;·&nbsp;"+dt_str if dt_str else ""}
+                </div>
             </div>""", unsafe_allow_html=True)
 
-        # ── Buy & Hold reference card ──────────────────────────────────────────
-        bh_ret = all_bt["daily"]["rb"]
-        bh_is_best = bh_ret > max(all_bt[k]["rs"] for k in all_bt)
-        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-          border-radius:10px;padding:12px 18px;margin-top:10px;
-          display:flex;justify-content:space-between;align-items:center;
-          flex-wrap:wrap;gap:8px;direction:rtl;">
-          <div style="color:{TX2};font-size:.82rem;font-weight:600;">
-            📌 קנה והחזק (ייחוס) &nbsp;·&nbsp; 0 עסקאות &nbsp;·&nbsp; $0 עמלות
-          </div>
-          <div style="color:{GRN if bh_ret>=0 else RED};font-size:1.1rem;font-weight:800;">
-            {bh_ret:+.1f}%
-            {'&nbsp; <span style="background:{GRN};color:{BG};font-size:.65rem;font-weight:800;border-radius:4px;padding:2px 6px;">ניצח הכל</span>'.format(GRN=GRN,BG=BG) if bh_is_best else ''}
-          </div>
-        </div>""", unsafe_allow_html=True)
+    # ── AI Recommendation ─────────────────────────────────────────────────────
+    score       = 0
+    indicators  = []   # list of (icon, label, detail, color, score_delta)
 
-        # ── Hebrew AI Summary ──────────────────────────────────────────────────
-        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        shead("ניתוח וסיכום המערכת")
+    # ── RSI ──
+    if not np.isnan(rsi_val):
+        if rsi_val < 30:
+            d = +2; ic = "📉"; lbl = f"RSI = {rsi_val:.0f}"; det = "המניה במצב מכירת יתר חריפה — לחץ מכירות קיצוני בדרך כלל מקדים היפוך מגמה. אזור כניסה אטרקטיבי."
+            col = GRN
+        elif rsi_val < 40:
+            d = +1; ic = "📉"; lbl = f"RSI = {rsi_val:.0f}"; det = "RSI נמוך מסמן חולשה זמנית. עבור מניות צמיחה איכותיות, ירידה לאזור זה היא לעיתים הזדמנות כניסה."
+            col = GRN
+        elif rsi_val > 70:
+            d = -2; ic = "📈"; lbl = f"RSI = {rsi_val:.0f}"; det = "המניה במצב קנייה יתר — המומנטום חזק אך הסיכון לתיקון מחיר גבוה. שקול המתנה לתיקון לפני כניסה."
+            col = RED
+        elif rsi_val > 60:
+            d = -1; ic = "📈"; lbl = f"RSI = {rsi_val:.0f}"; det = "RSI גבוה מעיד על תנופה, אך רכישה כעת מגדילה את חשיפת הסיכון. עדיף לחכות להתבססות."
+            col = AMB
+        else:
+            d = 0;  ic = "➡️"; lbl = f"RSI = {rsi_val:.0f}"; det = "RSI נמצא באזור נייטרלי — אין אות ברור לכיוון. מומלץ לעקוב אחר פריצה מהטווח."
+            col = TX2
+        score += d
+        indicators.append((ic, "RSI", lbl, det, col, d))
 
-        lines_html = ""
-        for lc, text in lines_sum:
-            lines_html += f"""<div style="border-right:3px solid {lc};padding:9px 14px;
-              margin-bottom:8px;direction:rtl;text-align:right;background:{BG}22;
-              border-radius:0 6px 6px 0;">
-              <div style="color:{TX};font-size:.87rem;line-height:1.65;">{text}</div>
-            </div>"""
+    # ── MA50 ──
+    if ma50:
+        gap50 = (cl - ma50) / ma50 * 100
+        if cl > ma50:
+            d = +1; ic = "📊"; lbl = f"מחיר מעל MA50 (+{gap50:.1f}%)"; det = f"המחיר נמצא {gap50:.1f}% מעל הממוצע נע של 50 יום — מגמה עולה לטווח בינוני. בדרך כלל סימן לעוצמה טכנית."; col = GRN
+        else:
+            d = -1; ic = "📊"; lbl = f"מחיר מתחת ל-MA50 ({gap50:.1f}%)"; det = f"המחיר נמוך ב-{abs(gap50):.1f}% ממוצע 50 יום — חולשה בינונית. עלייה חזרה מעל MA50 תהיה אות שחיובי."; col = RED
+        score += d
+        indicators.append(("📊", "ממוצע נע 50", lbl, det, col, d))
 
-        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-          border-radius:14px;padding:22px;direction:rtl;text-align:right;">
-          <div style="font-size:.95rem;font-weight:700;color:{TX};margin-bottom:16px;">
-            🤖 ניתוח ממוצע האסטרטגיות עבור {sym}
-          </div>
-          {lines_html}
-          <div style="background:{CDIM};border:1px solid {best_color}44;
-                      border-right:4px solid {best_color};
-                      border-radius:10px;padding:16px 18px;margin-top:8px;">
-            <div style="color:{best_color};font-weight:700;font-size:.82rem;
-                        margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">
-              💡 המלצת המערכת
+    # ── MA200 ──
+    if ma200:
+        gap200 = (cl - ma200) / ma200 * 100
+        if cl > ma200:
+            d = +1; lbl = f"מחיר מעל MA200 (+{gap200:.1f}%)"; det = f"המחיר מעל ממוצע 200 יום — מגמה עולה לטווח ארוך. מניות צמיחה מתחת ל-MA200 נחשבות בסיכון גבוה יותר."; col = GRN
+        else:
+            d = -1; lbl = f"מחיר מתחת ל-MA200 ({gap200:.1f}%)"; det = f"המחיר {abs(gap200):.1f}% מתחת לממוצע 200 יום — תמונה ארוכת טווח שלילית. כדאי להמתין לאישור היפוך."; col = RED
+        score += d
+        indicators.append(("📉", "ממוצע נע 200", lbl, det, col, d))
+
+    # ── MACD ──
+    if "MACD" in df.columns and "MACD_S" in df.columns:
+        macd_v = float(df["MACD"].iloc[-1])
+        macd_s = float(df["MACD_S"].iloc[-1])
+        macd_h = macd_v - macd_s
+        if macd_v > macd_s:
+            d = +1; lbl = f"MACD > Signal (+{macd_h:.2f})"; det = "קו MACD מעל קו האות — מומנטום עולה. בשילוב עם RSI נמוך זהו אות כניסה משמעותי לטווח הקצר-בינוני."; col = GRN
+        else:
+            d = -1; lbl = f"MACD < Signal ({macd_h:.2f})"; det = "קו MACD מתחת לקו האות — מומנטום יורד. ייתכן שהלחץ ימשך בטווח הקצר."; col = RED
+        score += d
+        indicators.append(("⚡", "MACD", lbl, det, col, d))
+
+    # ── Analyst consensus ──
+    rec_key   = (info.get("recommendationKey") or "").lower()
+    n_analyst = info.get("numberOfAnalystOpinions") or 0
+    tgt_price = info.get("targetMeanPrice")
+    if rec_key in ("buy", "strong_buy"):
+        upside = (tgt_price / cl - 1) * 100 if tgt_price else None
+        d = +1
+        lbl = f"אנליסטים: {rec_key.replace('_',' ').title()}"
+        det = (f"{n_analyst} אנליסטים ממליצים קנייה" +
+               (f" · יעד מחיר ממוצע ${tgt_price:,.0f} (אפסייד {upside:.0f}%)" if upside else ""))
+        col = GRN
+    elif rec_key in ("sell", "strong_sell", "underperform"):
+        d = -1; lbl = f"אנליסטים: {rec_key.replace('_',' ').title()}"
+        det = f"{n_analyst} אנליסטים ממליצים מכירה — זהירות."; col = RED
+    elif rec_key == "hold":
+        d = 0; lbl = "אנליסטים: החזקה"
+        det = f"{n_analyst} אנליסטים ממליצים המתנה — אין קטליסט מיידי ברדאר."; col = AMB
+    else:
+        d = 0; lbl = "אנליסטים: אין נתון"; det = "לא נמצאו המלצות אנליסטים"; col = TX3
+    score += d
+    indicators.append(("👨‍💼", "אנליסטים", lbl, det, col, d))
+
+    # ── Revenue growth ──
+    rev_g = info.get("revenueGrowth")
+    ear_g = info.get("earningsGrowth")
+    if rev_g is not None:
+        if rev_g > 0.20:
+            d = +2; lbl = f"צמיחת הכנסות {rev_g*100:.0f}%"
+            det = f"צמיחה של {rev_g*100:.0f}% בהכנסות — מאפיין ליבה של מניות צמיחה. שוק ה-AI/סמיקונדקטורים מצדיק מכפילים גבוהים בשלב זה."; col = GRN
+        elif rev_g > 0.05:
+            d = +1; lbl = f"צמיחת הכנסות {rev_g*100:.0f}%"
+            det = f"צמיחה מתונה של {rev_g*100:.0f}% — בריאה אך לא מרשימה לרף מניית צמיחה."; col = GRN
+        elif rev_g < -0.05:
+            d = -1; lbl = f"ירידת הכנסות {rev_g*100:.0f}%"
+            det = f"ירידה בהכנסות — דגל אדום עבור מניות צמיחה. בדוק אם מדובר בתופעה זמנית."; col = RED
+        else:
+            d = 0; lbl = f"הכנסות יציבות ({rev_g*100:.0f}%)"
+            det = "צמיחה אפסית — לא מתאימה לפרופיל מניית צמיחה אגרסיבית."; col = AMB
+        score += d
+        ear_str = f" · רווח: {ear_g*100:.0f}%" if ear_g else ""
+        indicators.append(("💰", "פונדמנטלים", lbl + ear_str, det, col, d))
+
+    # ── Profitability margin ──
+    margin = info.get("grossMargins")
+    if margin and margin > 0.50:
+        d = +1; score += d
+        indicators.append(("📦", "שולי רווח גולמי",
+                           f"מרווח גולמי {margin*100:.0f}%",
+                           f"מרווח גולמי של {margin*100:.0f}% — סימן לעוצמת תמחור (pricing power). חיוני למניות צמיחה להצדיק מכפילים גבוהים.",
+                           GRN, d))
+
+    # ── Volume trend ──
+    if "Vol_ratio" in df.columns and not pd.isna(df["Vol_ratio"].iloc[-1]):
+        vr = float(df["Vol_ratio"].iloc[-1])
+        if vr > 1.5:
+            if chg_pct > 0:
+                d = +1; col = GRN
+                lbl = f"נפח גבוה ({vr:.1f}x ממוצע) — עם עלייה"
+                det = f"נפח המסחר גבוה ב-{(vr-1)*100:.0f}% מהממוצע, לצד עלייה במחיר — מומנטום חיובי עם אישור נפח."
+            else:
+                d = -1; col = RED
+                lbl = f"נפח גבוה ({vr:.1f}x ממוצע) — עם ירידה"
+                det = f"נפח מסחר גבוה לצד ירידה במחיר — לחץ מכירות משמעותי. מאותת חולשה."
+            score += d
+            indicators.append(("📊", "נפח מסחר", lbl, det, col, d))
+
+    # ── Earnings date warning ──
+    earnings_dt = cal.get("earnings_date")
+    if earnings_dt:
+        days_to_earn = (pd.Timestamp(earnings_dt) - pd.Timestamp(datetime.now())).days
+        if 0 <= days_to_earn <= 14:
+            d = -1; score += d
+            indicators.append(("📅", "דוח רווחים",
+                f"דוח רווחים בעוד {days_to_earn} ימים ({pd.Timestamp(earnings_dt).strftime('%d/%m/%Y')})",
+                "הדוח הרבעוני קרוב — תנודתיות גבוהה צפויה. שקול לחכות לאחרי הדוח לפני כניסה.",
+                AMB, d))
+
+    # ── Map score → verdict ──
+    if   score >=  5: rec_label, rec_color, rec_icon = "קנייה חזקה",  GRN, "🟢"
+    elif score >=  3: rec_label, rec_color, rec_icon = "קנייה",       GRN, "🟩"
+    elif score >= -1: rec_label, rec_color, rec_icon = "החזקה",       AMB, "🟡"
+    elif score >= -3: rec_label, rec_color, rec_icon = "מכירה",       RED, "🔴"
+    else:             rec_label, rec_color, rec_icon = "מכירה חזקה",  RED, "🔻"
+
+    # ── Build explanation paragraphs ──
+    bullish = [(ic,lbl,det) for ic,grp,lbl,det,col,d in indicators if d > 0]
+    bearish = [(ic,lbl,det) for ic,grp,lbl,det,col,d in indicators if d < 0]
+    neutral = [(ic,lbl,det) for ic,grp,lbl,det,col,d in indicators if d == 0]
+
+    def _ind_row(ic, lbl, det, c):
+        return (f"<div style='display:flex;gap:10px;padding:9px 0;"
+                f"border-bottom:1px solid {BDR};direction:rtl;'>"
+                f"<span style='font-size:1rem;min-width:22px;'>{ic}</span>"
+                f"<div><div style='font-size:.82rem;font-weight:700;color:{c};'>{lbl}</div>"
+                f"<div style='font-size:.79rem;color:{TX2};line-height:1.55;margin-top:2px;'>{det}</div>"
+                f"</div></div>")
+
+    bull_html = "".join(_ind_row(ic,lbl,det, GRN) for ic,lbl,det in bullish) if bullish else ""
+    bear_html = "".join(_ind_row(ic,lbl,det, RED) for ic,lbl,det in bearish) if bearish else ""
+    neut_html = "".join(_ind_row(ic,lbl,det, TX2) for ic,lbl,det in neutral) if neutral else ""
+
+    # Risk warning tailored to verdict
+    if rec_label in ("קנייה חזקה", "קנייה"):
+        risk_msg = ("⚠️ גם עם אותות חיוביים, מניות צמיחה טכנולוגיות תנודתיות מאוד. "
+                    "שינוי בריבית, תוצאות רבעוניות מאכזבות, או תנודתיות שוק כללית עלולים לגרום "
+                    "לירידות של 20-40% בטווח קצר. השקע רק סכום שאתה מוכן להפסיד.")
+    elif rec_label == "החזקה":
+        risk_msg = ("⚠️ אין קטליסט ברור לעלייה או ירידה בטווח הקרוב. "
+                    "אם אתה מחזיק — עקוב אחר תוצאות הרבעון הקרוב ורמת ה-RSI. "
+                    "כניסה חדשה בנקודה זו אינה מומלצת ללא תיקון.")
+    else:
+        risk_msg = ("⚠️ אותות שליליים מרובים — שקול הפחתת חשיפה. "
+                    "אל תלחם במגמה. המתן לאישורים טכניים ברורים (פריצת MA50, RSI נמוך) "
+                    "לפני כניסה מחדש.")
+
+    st.html(f"""
+    <div style="background:{BG};border:2px solid {rec_color};border-radius:16px;
+        padding:22px 26px;margin-top:20px;direction:rtl;">
+
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+                    padding-bottom:16px;border-bottom:1px solid {BDR2};">
+            <div style="font-size:.78rem;color:{TX2};font-weight:600;">המלצת מערכת:</div>
+            <div style="font-size:1.7rem;font-weight:900;color:{rec_color};letter-spacing:1px;">
+                {rec_icon}&nbsp;{rec_label}
             </div>
-            <div style="color:{TX};font-size:.88rem;line-height:1.75;">{rec_text}</div>
-          </div>
+            <div style="margin-right:auto;background:{SURF2};border-radius:20px;
+                        padding:3px 14px;font-size:.78rem;color:{TX2};">
+                ציון כולל: <b style="color:{rec_color};">{score:+d}</b> / 9
+            </div>
+        </div>
+
+        {"<div style='margin-top:14px;'><div style='font-size:.78rem;font-weight:700;color:"+GRN+";margin-bottom:6px;'>✅ גורמים תומכים (" + str(len(bullish)) + ")</div>" + bull_html + "</div>" if bullish else ""}
+        {"<div style='margin-top:12px;'><div style='font-size:.78rem;font-weight:700;color:"+RED+";margin-bottom:6px;'>❌ גורמים נגד (" + str(len(bearish)) + ")</div>" + bear_html + "</div>" if bearish else ""}
+        {"<div style='margin-top:12px;'><div style='font-size:.78rem;font-weight:700;color:"+TX3+";margin-bottom:6px;'>⬜ נייטרלי (" + str(len(neutral)) + ")</div>" + neut_html + "</div>" if neutral else ""}
+
+        <div style="background:{SURF2};border-radius:10px;padding:12px 16px;
+                    margin-top:16px;font-size:.79rem;color:{TX2};line-height:1.65;">
+            {risk_msg}
+        </div>
+
+        <div style="font-size:.68rem;color:{TX3};margin-top:10px;">
+            ניתוח אוטומטי בלבד · אינו מהווה ייעוץ השקעות מוסמך · תאריך: {datetime.now().strftime('%d/%m/%Y')}
+        </div>
+    </div>
+    """)
+
+    # ── Bottom-line plain-language explanation ────────────────────────────────
+    action_map = {
+        "קנייה חזקה": (f"כן — רוב האינדיקטורים מצביעים על הזדמנות כניסה ל-{sym}", GRN),
+        "קנייה":       (f"כן, אך בזהירות — יש יותר סיבות לאופטימיות מאשר לדאגה", GRN),
+        "החזקה":       ("לא עכשיו — המתן לאות ברור יותר", AMB),
+        "מכירה":       ("לא — שקול להפחית חשיפה", RED),
+        "מכירה חזקה":  ("לא — מומלץ לצאת מהפוזיציה", RED),
+    }
+    action_str, action_color = action_map.get(rec_label, ("לא ברור", TX2))
+
+    why_bullets = "".join(
+        f"<li style='margin-bottom:7px;'>"
+        f"<span style='font-weight:700;color:{GRN};'>{lbl}</span>"
+        f" — <span style='color:{TX};'>{det}</span></li>"
+        for ic, lbl, det in bullish
+    )
+    watch_bullets = "".join(
+        f"<li style='margin-bottom:7px;'>"
+        f"<span style='font-weight:700;color:{RED};'>{lbl}</span>"
+        f" — <span style='color:{TX};'>{det}</span></li>"
+        for ic, lbl, det in bearish
+    )
+
+    n_total = len(bullish) + len(bearish) + len(neutral)
+    if rec_label in ("קנייה חזקה", "קנייה"):
+        conclusion = (
+            f"מתוך {n_total} אינדיקטורים שנבדקו, {len(bullish)} תומכים בקנייה "
+            f"ו-{len(bearish)} מתנגדים. הכף נוטה לטובה — "
+            f"אך תמיד כדאי לפזר סיכונים ולא לשים הכול על מניה אחת."
+        )
+    elif rec_label == "החזקה":
+        conclusion = (
+            f"האינדיקטורים מאוזנים ({len(bullish)} חיוביים, {len(bearish)} שליליים). "
+            f"אם אתה כבר מחזיק — אין סיבה למכור. "
+            f"אם אתה שוקל כניסה חדשה — המתן לתנאים בשלים יותר."
+        )
+    else:
+        conclusion = (
+            f"מתוך {n_total} אינדיקטורים שנבדקו, {len(bearish)} שליליים מול {len(bullish)} חיוביים. "
+            f"הכף נוטה לזהירות — ייתכן שעדיף להמתין לשיפור בתנאים הטכניים."
+        )
+
+    why_section = (
+        f"<div style='margin-bottom:16px;'>"
+        f"<div style='font-size:.8rem;color:{TX3};font-weight:700;margin-bottom:8px;'>"
+        f"למה? — הגורמים התומכים:</div>"
+        f"<ul style='margin:0;padding-right:20px;font-size:.82rem;line-height:1.8;'>"
+        f"{why_bullets}</ul></div>"
+    ) if why_bullets else ""
+
+    watch_section = (
+        f"<div style='margin-bottom:16px;'>"
+        f"<div style='font-size:.8rem;color:{TX3};font-weight:700;margin-bottom:8px;'>"
+        f"⚠️ מה לשים לב אליו:</div>"
+        f"<ul style='margin:0;padding-right:20px;font-size:.82rem;line-height:1.8;'>"
+        f"{watch_bullets}</ul></div>"
+    ) if watch_bullets else ""
+
+    st.html(f"""
+    <div style="background:{SURF};border:2px solid {CYAN}44;border-radius:16px;
+        padding:22px 26px;margin-top:16px;direction:rtl;">
+
+        <div style="font-size:1rem;font-weight:800;color:{TX};margin-bottom:16px;
+                    border-bottom:1px solid {BDR};padding-bottom:12px;">
+            💬 השורה התחתונה — מה זה אומר לי?
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <div style="font-size:.8rem;color:{TX3};font-weight:700;margin-bottom:8px;">
+                האם לקנות את {sym} עכשיו?
+            </div>
+            <div style="font-size:1.1rem;font-weight:800;color:{action_color};line-height:1.5;">
+                {action_str}
+            </div>
+        </div>
+
+        {why_section}
+        {watch_section}
+
+        <div style="background:{SURF2};border-radius:10px;padding:14px 18px;
+                    border-right:4px solid {CYAN};font-size:.84rem;color:{TX};line-height:1.8;">
+            <span style="font-weight:700;color:{CYAN};">בשורה האמיתית:</span> {conclusion}
+        </div>
+    </div>
+    """)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: HOME — Hot Stocks Scanner
+# ══════════════════════════════════════════════════════════════════════════════
+def page_home():
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
+        <div style="font-size:1.5rem;font-weight:800;color:{TX};">🔥 מניות חמות לצפייה</div>
+        <div style="color:{TX2};font-size:.83rem;margin-top:3px;">
+            ניתוח RSI ואות מסחר — מתעדכן כל דקה
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Search any ticker ─────────────────────────────────────────────────────
+    sc1, sc2, sc3 = st.columns([2.5, 0.7, 3.8])
+    with sc1:
+        search_val = st.text_input(
+            "", placeholder="🔍 חפש כל מניה לפי סמול — AAPL, TSLA, GOOGL...",
+            label_visibility="collapsed", key="search_input"
+        ).upper().strip()
+    with sc2:
+        do_search = st.button("חפש", key="search_btn", type="primary",
+                              use_container_width=True)
+
+    if do_search and search_val:
+        st.session_state["search_ticker"] = search_val
+        st.session_state["home_selected"] = None
+        st.rerun()
+
+    search_sym = st.session_state.get("search_ticker", "")
+    if search_sym:
+        hdr_c, clr_c = st.columns([6, 1])
+        with hdr_c:
+            st.markdown(
+                f"<div style='direction:rtl;font-size:.85rem;color:{TX2};padding:4px 0;'>"
+                f"מציג ניתוח עבור: <b style='color:{CYAN};'>{search_sym}</b></div>",
+                unsafe_allow_html=True)
+        with clr_c:
+            if st.button("✕ נקה", key="clear_search", use_container_width=True):
+                st.session_state["search_ticker"] = ""
+                st.rerun()
+        _stock_detail(search_sym)
+        st.markdown(
+            f"<div style='height:6px;border-bottom:2px solid {BDR};"
+            f"margin-bottom:24px;margin-top:8px;'></div>",
+            unsafe_allow_html=True)
+
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    selected  = st.session_state.get("home_selected")
+    watchlist = load_json(WL_FILE)
+    mobile    = st.session_state.get("mobile_mode", False)
+    col_count = 2 if mobile else 5
+
+    # ── Alerts banner ─────────────────────────────────────────────────────────
+    if watchlist:
+        alerts = _check_alerts(watchlist)
+        if alerts:
+            buy_alerts  = [a for a in alerts if a["type"] == "buy"]
+            sell_alerts = [a for a in alerts if a["type"] == "sell"]
+            parts = []
+            if buy_alerts:
+                syms = ", ".join(f"<b style='color:{GRN};'>{a['sym']}</b> (RSI {a['rsi']:.0f})"
+                                 for a in buy_alerts)
+                parts.append(f"📉 אות קנייה פוטנציאלי: {syms}")
+            if sell_alerts:
+                syms = ", ".join(f"<b style='color:{RED};'>{a['sym']}</b> (RSI {a['rsi']:.0f})"
+                                 for a in sell_alerts)
+                parts.append(f"📈 RSI גבוה — שים לב: {syms}")
+            st.html(f"""
+            <div style="background:#0a1e10;border:1px solid {GRN}55;border-radius:10px;
+                padding:10px 16px;margin-bottom:16px;direction:rtl;font-size:.83rem;color:{TX};">
+                🔔 <b style="color:{GRN};">התראות ממניות המעקב שלך:</b>
+                {"&nbsp;&nbsp;|&nbsp;&nbsp;".join(parts)}
+            </div>
+            """)
+
+    # ── Prefetch all HOT quotes in parallel ───────────────────────────────────
+    with st.spinner("מעדכן נתוני שוק..."):
+        hot_quotes = _prefetch_quotes([s["t"] for s in HOT])
+
+    for row_start in range(0, len(HOT), col_count):
+        cols = st.columns(col_count, gap="small")
+        for i, col in enumerate(cols):
+            if row_start + i >= len(HOT):
+                break
+            s = HOT[row_start + i]
+            q = hot_quotes.get(s["t"], {})
+
+            price_str = f"${q['price']:,.2f}"    if q else "—"
+            chg_str   = (f"+{q['chg']:.1f}%" if q.get("chg",0)>=0
+                         else f"{q['chg']:.1f}%") if q else "—"
+            chg_c     = (GRN if q.get("chg",0)>=0 else RED) if q else TX3
+            rsi_str   = f"{q['rsi']:.0f}"       if q else "—"
+            sig       = q.get("sig","—")          if q else "—"
+            sig_c     = q.get("sig_c", TX3)       if q else TX3
+            is_sel    = (selected == s["t"])
+            border    = f"border:2px solid {CYAN};" if is_sel else f"border:1px solid {BDR};"
+
+            col.markdown(f"""<div class="scard" style="{border}border-top:3px solid {s['a']}40;">
+                <div style="display:flex;justify-content:space-between;
+                            align-items:flex-start;margin-bottom:6px;">
+                    <div style="font-size:1.1rem;font-weight:800;color:{s['a']};">
+                        {s['t']}
+                    </div>
+                    <div style="font-size:.64rem;background:{s['a']}22;color:{s['a']};
+                                padding:2px 7px;border-radius:8px;white-space:nowrap;">
+                        {s['c']}
+                    </div>
+                </div>
+                <div style="font-size:.74rem;color:{TX2};margin-bottom:10px;">
+                    {s['n']}
+                </div>
+                <div style="font-size:1.5rem;font-weight:700;color:{TX};margin-bottom:3px;">
+                    {price_str}
+                </div>
+                <div style="display:flex;justify-content:space-between;
+                            align-items:center;margin-bottom:8px;">
+                    <span style="color:{chg_c};font-weight:600;font-size:.86rem;">
+                        {chg_str}
+                    </span>
+                    <span style="background:{sig_c}22;color:{sig_c};font-size:.72rem;
+                                 font-weight:700;padding:3px 10px;border-radius:10px;">
+                        {sig}
+                    </span>
+                </div>
+                <div style="font-size:.72rem;color:{TX3};
+                            border-top:1px solid {BDR};padding-top:7px;margin-bottom:7px;">
+                    RSI: {rsi_str}
+                </div>
+                <div style="font-size:.76rem;color:{TX2};line-height:1.55;margin-bottom:10px;">
+                    {s['w']}
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+            # ── Action buttons under each card ────────────────────────────────
+            b1, b2 = col.columns(2)
+            with b1:
+                if st.button("📊 ניתוח", key=f"h_ana_{s['t']}",
+                             use_container_width=True,
+                             type="primary" if is_sel else "secondary"):
+                    st.session_state["home_selected"] = (
+                        None if is_sel else s["t"]
+                    )
+                    st.rerun()
+            with b2:
+                in_wl  = s["t"] in watchlist
+                wl_lbl = "✓ מעקב" if in_wl else "👁️ מעקב"
+                if st.button(wl_lbl, key=f"h_wl_{s['t']}",
+                             use_container_width=True,
+                             type="primary" if in_wl else "secondary"):
+                    if not in_wl:
+                        watchlist.append(s["t"])
+                        save_json(WL_FILE, watchlist)
+                        st.rerun()
+
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    # ── Detail panel (below all cards) ───────────────────────────────────────
+    if selected:
+        _stock_detail(selected)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: PORTFOLIO — התיק שלי
+# ══════════════════════════════════════════════════════════════════════════════
+def page_portfolio():
+    portfolio = load_json(PF_FILE)
+
+    hdr1, hdr2 = st.columns([5, 1])
+    with hdr1:
+        st.markdown(f"""<div class="section-head">💼 התיק שלי</div>""",
+                    unsafe_allow_html=True)
+    with hdr2:
+        if st.button("🔄 רענן", key="pf_refresh", use_container_width=True,
+                     help="עדכן מחירים"):
+            fast_price.clear()
+            quote.clear()
+            st.rerun()
+
+    # ── Add holding form ──────────────────────────────────────────────────────
+    prefill = st.session_state.pop("pf_prefill", "")
+    with st.expander("➕ הוסף מניה לתיק", expanded=(len(portfolio) == 0 or bool(prefill))):
+        c1, c2, c3, c4, c5 = st.columns([1.5, 1.5, 1.5, 1.5, 0.8])
+        with c1:
+            new_sym = st.text_input("סמול (Ticker)", value=prefill, placeholder="NVDA",
+                                    key="pf_sym").upper().strip()
+        with c2:
+            new_shares = st.number_input("מספר מניות", min_value=0.0001,
+                                         value=1.0, step=1.0, key="pf_shares")
+        with c3:
+            new_bp = st.number_input("מחיר קנייה ($)", min_value=0.01,
+                                     value=100.0, step=1.0, key="pf_bp")
+        with c4:
+            new_date = st.date_input("תאריך קנייה", key="pf_date")
+        with c5:
+            st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
+            if st.button("הוסף ✓", key="pf_add", use_container_width=True,
+                         type="primary"):
+                if new_sym:
+                    portfolio.append({
+                        "sym":      new_sym,
+                        "shares":   float(new_shares),
+                        "buy_price":float(new_bp),
+                        "buy_date": str(new_date),
+                    })
+                    save_json(PF_FILE, portfolio)
+                    st.rerun()
+
+    if not portfolio:
+        st.markdown(f"""<div style="text-align:center;padding:70px 0;
+            color:{TX2};direction:rtl;">
+            <div style="font-size:3.5rem;margin-bottom:14px;">📭</div>
+            <div style="font-size:1rem;">התיק ריק. הוסף את המניה הראשונה שלך למעלה.</div>
+        </div>""", unsafe_allow_html=True)
+        return
+
+    # ── Prefetch all portfolio quotes in parallel ─────────────────────────────
+    pf_syms = [h["sym"] for h in portfolio]
+    with st.spinner("מעדכן מחירים..."):
+        pf_quotes = _prefetch_quotes(pf_syms)
+
+    # ── Compute P&L ──────────────────────────────────────────────────────────
+    total_invested = 0.0
+    total_current  = 0.0
+
+    # Column headers
+    hc = st.columns([1.2, 1.8, 1.1, 1.5, 1.5, 2.0, 0.6])
+    for col, lbl in zip(hc, ["סמול","מחיר | שינוי יומי","כמות",
+                               "עלות כוללת","שווי נוכחי","רווח / הפסד (כולל)",""]):
+        col.markdown(f"<div style='color:{TX3};font-size:.74rem;font-weight:700;"
+                     f"direction:rtl;padding-bottom:4px;border-bottom:1px solid {BDR};'>"
+                     f"{lbl}</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    to_delete = None
+    for i, h in enumerate(portfolio):
+        sym    = h["sym"]
+        shares = h["shares"]
+        bp     = h["buy_price"]
+
+        q     = pf_quotes.get(sym, {})
+        price = q.get("price") if q else None
+        # fallback to fast_price if quote returned empty
+        if not price:
+            price = fast_price(sym)
+        day_chg = q.get("chg") if q else None  # daily % change
+
+        invested = shares * bp
+        total_invested += invested
+
+        if price:
+            cur_val  = shares * price
+            pnl_usd  = cur_val - invested
+            pnl_pct  = pnl_usd / invested * 100
+            pnl_c    = GRN if pnl_usd >= 0 else RED
+            total_current += cur_val
+            curval_s = f"${cur_val:,.0f}"
+            pnl_s    = (f"+${pnl_usd:,.0f}" if pnl_usd >= 0 else f"-${abs(pnl_usd):,.0f}")
+            pnl_pct_s= f"{pnl_pct:+.1f}%"
+            # Daily change badge
+            if day_chg is not None:
+                dchg_c   = GRN if day_chg >= 0 else RED
+                dchg_arr = "▲" if day_chg >= 0 else "▼"
+                price_s  = (f"<span style='font-weight:700;'>${price:,.2f}</span>"
+                            f"&nbsp;<span style='font-size:.75rem;color:{dchg_c};"
+                            f"font-weight:600;'>{dchg_arr} {abs(day_chg):.1f}%</span>")
+            else:
+                price_s = f"<span style='font-weight:700;'>${price:,.2f}</span>"
+        else:
+            pnl_c    = TX2
+            price_s  = "<span style='color:#3a6080;'>טוען...</span>"
+            curval_s = "..."
+            pnl_s    = "..."
+            pnl_pct_s= ""
+
+        bg = f"background:{SURF}" if i % 2 == 0 else f"background:{SURF2}"
+        rc = st.columns([1.2, 1.8, 1.1, 1.5, 1.5, 2.0, 0.6])
+        with rc[0]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                        f"<b style='color:{CYAN};'>{sym}</b></div>",
+                        unsafe_allow_html=True)
+        with rc[1]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;color:{TX};'>"
+                        f"{price_s}</div>", unsafe_allow_html=True)
+        with rc[2]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;color:{TX2};'>"
+                        f"{shares:g}</div>", unsafe_allow_html=True)
+        with rc[3]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;color:{TX2};'>"
+                        f"${invested:,.0f}</div>", unsafe_allow_html=True)
+        with rc[4]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                        f"{curval_s}</div>", unsafe_allow_html=True)
+        with rc[5]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                        f"<span style='color:{pnl_c};font-weight:700;'>{pnl_s}</span>"
+                        f"<span style='color:{pnl_c};font-size:.78rem;margin-right:6px;'>"
+                        f"{pnl_pct_s}</span></div>", unsafe_allow_html=True)
+        with rc[6]:
+            if st.button("✕", key=f"pf_del_{i}", help="הסר מהתיק"):
+                to_delete = i
+
+    if to_delete is not None:
+        portfolio.pop(to_delete)
+        save_json(PF_FILE, portfolio)
+        st.rerun()
+
+    # ── Summary bar ──────────────────────────────────────────────────────────
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    if total_current > 0:
+        total_pnl     = total_current - total_invested
+        total_pnl_pct = total_pnl / total_invested * 100 if total_invested else 0
+        pnl_c         = GRN if total_pnl >= 0 else RED
+
+        sc = st.columns(3)
+        for col, lbl, val, vc in [
+            (sc[0], "סך הושקע",        f"${total_invested:,.0f}",  TX),
+            (sc[1], "שווי נוכחי",       f"${total_current:,.0f}",   CYAN),
+            (sc[2], "רווח / הפסד כולל", f"{'+'if total_pnl>=0 else ''}${total_pnl:,.0f}  ({total_pnl_pct:+.1f}%)", pnl_c),
+        ]:
+            col.markdown(f"""<div class="sumcard">
+                <div style="font-size:.78rem;color:{TX2};margin-bottom:6px;">{lbl}</div>
+                <div style="font-size:1.35rem;font-weight:800;color:{vc};">{val}</div>
+            </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: WATCHLIST — מניות במעקב
+# ══════════════════════════════════════════════════════════════════════════════
+def page_watchlist():
+    watchlist = load_json(WL_FILE)
+
+    st.markdown(f"""<div class="section-head">👁️ מניות במעקב</div>""",
+                unsafe_allow_html=True)
+
+    # ── Add ticker ────────────────────────────────────────────────────────────
+    ac1, ac2, _ = st.columns([1.5, 0.8, 4])
+    with ac1:
+        add_sym = st.text_input("", placeholder="הוסף סמול (AAPL, TSLA...)",
+                                label_visibility="collapsed",
+                                key="wl_input").upper().strip()
+    with ac2:
+        if st.button("➕ הוסף", key="wl_add", type="primary",
+                     use_container_width=True):
+            if add_sym and add_sym not in watchlist:
+                watchlist.append(add_sym)
+                save_json(WL_FILE, watchlist)
+                st.rerun()
+
+    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+
+    if not watchlist:
+        st.markdown(f"""<div style="text-align:center;padding:70px 0;
+            color:{TX2};direction:rtl;">
+            <div style="font-size:3.5rem;margin-bottom:14px;">🔍</div>
+            <div>אין מניות ברשימת המעקב. הוסף את הראשונה למעלה.</div>
+        </div>""", unsafe_allow_html=True)
+        return
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    hc = st.columns([1, 1.6, 1.4, 1.4, 1.4, 0.6])
+    for col, lbl in zip(hc, ["סמול","מחיר","שינוי יומי","RSI","אות מסחר",""]):
+        col.markdown(f"<div style='color:{TX3};font-size:.74rem;font-weight:700;"
+                     f"direction:rtl;padding-bottom:4px;border-bottom:1px solid {BDR};'>"
+                     f"{lbl}</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    to_remove = None
+    for i, sym in enumerate(watchlist):
+        q  = quote(sym)
+        bg = f"background:{SURF}" if i % 2 == 0 else f"background:{SURF2}"
+
+        price_s = f"${q['price']:,.2f}"              if q else "—"
+        chg_s   = (f"+{q['chg']:.1f}%" if q.get("chg",0) >= 0
+                   else f"{q['chg']:.1f}%")          if q else "—"
+        chg_c   = (GRN if q.get("chg", 0) >= 0 else RED) if q else TX2
+        rsi_s   = f"{q['rsi']:.0f}"                 if q else "—"
+        sig     = q.get("sig", "—")                  if q else "—"
+        sig_c   = q.get("sig_c", TX3)                if q else TX3
+
+        rc = st.columns([1, 1.6, 1.4, 1.4, 1.4, 0.6])
+        with rc[0]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                        f"<b style='color:{CYAN};'>{sym}</b></div>",
+                        unsafe_allow_html=True)
+        with rc[1]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                        f"{price_s}</div>", unsafe_allow_html=True)
+        with rc[2]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                        f"<span style='color:{chg_c};font-weight:600;'>{chg_s}</span>"
+                        f"</div>", unsafe_allow_html=True)
+        with rc[3]:
+            # RSI color
+            rsi_val = q.get("rsi", 50) if q else 50
+            rsi_c = GRN if rsi_val < 35 else RED if rsi_val > 65 else TX2
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                        f"<span style='color:{rsi_c};font-weight:600;'>{rsi_s}</span>"
+                        f"</div>", unsafe_allow_html=True)
+        with rc[4]:
+            st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                        f"<span style='background:{sig_c}22;color:{sig_c};"
+                        f"font-size:.76rem;font-weight:700;padding:4px 12px;"
+                        f"border-radius:12px;'>{sig}</span></div>",
+                        unsafe_allow_html=True)
+        with rc[5]:
+            if st.button("✕", key=f"wl_del_{i}", help="הסר מהרשימה"):
+                to_remove = i
+
+    if to_remove is not None:
+        watchlist.pop(to_remove)
+        save_json(WL_FILE, watchlist)
+        st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: DEMO — סימולציית דמו
+# ══════════════════════════════════════════════════════════════════════════════
+# ── helpers ──────────────────────────────────────────────────────────────────
+def _trade_line(t: dict) -> str:
+    """One-line Hebrew trade description."""
+    if t["action"] == "buy":
+        return (f"{t['date']} — קניתי {t['sym']} ב-${t['price']:,.2f} | {t['reason']}")
+    else:
+        sign = "+" if (t.get("pnl_dollar") or 0) >= 0 else ""
+        return (f"{t['date']} — מכרתי {t['sym']} ב-${t['price']:,.2f} | "
+                f"{sign}${t.get('pnl_dollar',0):,.0f} ({t.get('pnl_pct',0):+.1f}%) | "
+                f"{t['reason']}")
+
+def _trade_color(t: dict) -> str:
+    if t["action"] == "buy": return GRN
+    return GRN if (t.get("pnl_dollar") or 0) >= 0 else RED
+
+def _draw_portfolio_chart(dates, values, bh_vals, budget, target_val,
+                          target_pct, tgt_date=None) -> go.Figure:
+    fig = go.Figure()
+    fig.add_hline(y=budget, line=dict(color=TX3, dash="dot", width=1))
+    fig.add_hline(y=target_val,
+                  line=dict(color=AMB, dash="dash", width=1.5),
+                  annotation_text=f"יעד {target_pct:.0f}%",
+                  annotation_font_color=AMB)
+    fig.add_trace(go.Scatter(x=dates, y=bh_vals, name="קנה והחזק",
+                             line=dict(color=TX3, width=1.5, dash="dot"),
+                             fill="tozeroy", fillcolor="rgba(107,155,192,.03)"))
+    fig.add_trace(go.Scatter(x=dates, y=values, name="AI",
+                             line=dict(color=CYAN, width=2.5),
+                             fill="tozeroy", fillcolor="rgba(0,180,216,.07)"))
+    if tgt_date:
+        try:
+            td = datetime.strptime(tgt_date, "%d/%m/%Y")
+            fig.add_trace(go.Scatter(x=[td], y=[target_val], mode="markers",
+                name="יעד הושג",
+                marker=dict(symbol="star", color=AMB, size=16,
+                            line=dict(color=BG, width=1))))
+        except Exception:
+            pass
+    fig.update_layout(**{**PB, "height": 360, "yaxis_title": "שווי תיק ($)"})
+    return fig
+
+
+# ── Setup screen ─────────────────────────────────────────────────────────────
+def _demo_setup():
+    S = st.session_state
+    st.markdown(f"""<div style="background:{SURF};border:1px solid {BDR};
+        border-radius:14px;padding:26px 30px;direction:rtl;max-width:820px;">
+        <div style="font-size:1rem;font-weight:700;color:{TX};margin-bottom:20px;">
+            הגדר את יעדי הסימולציה — ה-AI יקבל את כל ההחלטות
         </div>""", unsafe_allow_html=True)
 
-st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
-st.caption("⚠️ אפליקציה זו מיועדת למטרות מידע בלבד ואינה מהווה ייעוץ פיננסי. כל ההשקעות כרוכות בסיכון.")
+    c1, c2 = st.columns(2)
+    with c1:
+        budget = st.number_input("💰 תקציב התחלתי ($)",
+                                  min_value=1000, max_value=10_000_000,
+                                  value=int(S["demo2_budget"]), step=1000,
+                                  key="d2_budget")
+    with c2:
+        target_pct = st.number_input("🎯 יעד רווח (%)",
+                                      min_value=5, max_value=2000,
+                                      value=int(S["demo2_target_pct"]), step=5,
+                                      key="d2_target")
+
+    c3, c4 = st.columns(2)
+    with c3:
+        years = list(range(2010, 2025))
+        start_year = st.selectbox("📅 שנת התחלה", years,
+                                   index=years.index(S["demo2_start_year"]),
+                                   key="d2_sy")
+    with c4:
+        eyears = list(range(2011, 2026))
+        end_year = st.selectbox("📅 שנת סיום", eyears,
+                                 index=eyears.index(min(S["demo2_end_year"], 2025)),
+                                 key="d2_ey")
+
+    opts    = [f"{sym} — {name}" for sym, name in TRADEABLE]
+    default = [f"{sym} — {name}" for sym, name in TRADEABLE
+               if sym in S["demo2_tickers"]]
+    sel = st.multiselect("📋 מניות לסחור (עד 12)",
+                          opts, default=default,
+                          max_selections=12, key="d2_tickers_sel")
+
+    risk = st.radio("⚖️ רמת סיכון",
+                    ["שמרני", "מאוזן", "אגרסיבי"],
+                    index=["שמרני","מאוזן","אגרסיבי"].index(S["demo2_risk"]),
+                    horizontal=True, key="d2_risk")
+
+    rp = RISK_PROFILES[risk]
+    st.markdown(f"""<div style="background:{SURF2};border-radius:8px;padding:11px 16px;
+        margin:14px 0;font-size:.82rem;color:{TX2};direction:rtl;">
+        <b style="color:{CYAN};">אסטרטגיה:</b>
+        קנה כש-RSI &lt; {rp['rsi_buy']} ומחיר מעל MA50 ·
+        מכור כש-RSI &gt; {rp['rsi_sell']} ·
+        Stop Loss {rp['stop_loss']*100:.0f}% ·
+        מקסימום {rp['max_pos']*100:.0f}% לכל מניה
+    </div>""", unsafe_allow_html=True)
+
+    speed = st.radio("⚡ מהירות אנימציה",
+                     ["איטי", "רגיל", "מהיר"],
+                     index=["איטי","רגיל","מהיר"].index(S["demo2_speed"]),
+                     horizontal=True, key="d2_speed")
+
+    if st.button("🚀 הפעל סימולציה", type="primary", key="d2_go"):
+        tickers = [o.split(" — ")[0] for o in sel]
+        if not tickers:
+            st.error("בחר לפחות מניה אחת.")
+        elif start_year >= end_year:
+            st.error("שנת ההתחלה חייבת להיות לפני שנת הסיום.")
+        else:
+            S["demo2_budget"]     = float(budget)
+            S["demo2_target_pct"] = float(target_pct)
+            S["demo2_start_year"] = start_year
+            S["demo2_end_year"]   = end_year
+            S["demo2_tickers"]    = tickers
+            S["demo2_risk"]       = risk
+            S["demo2_speed"]      = speed
+            S["demo2_state"]      = "computing"
+            st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ── Animation screen ──────────────────────────────────────────────────────────
+def _demo_animate():
+    S        = st.session_state
+    r        = S["demo2_results"]
+    frame    = S["demo2_frame"]
+    speed    = S["demo2_speed"]
+    budget   = S["demo2_budget"]
+    tgt_val  = budget * (1 + S["demo2_target_pct"] / 100)
+    total    = len(r["daily_vals"])
+    steps, delay = ANIM_SPEED[speed]
+    new_frame = min(frame + steps, total)
+
+    # Controls
+    cc1, cc2, cc3, _ = st.columns([1.1, 1.1, 1.1, 4])
+    with cc1:
+        if st.button("⏩ דלג לסוף", key="d2_skip", use_container_width=True):
+            S["demo2_frame"] = total
+            S["demo2_state"] = "complete"
+            st.rerun()
+    with cc2:
+        if st.button("⏸️ השהה", key="d2_pause", use_container_width=True):
+            S["demo2_frame"] = new_frame
+            st.rerun()
+            return
+    with cc3:
+        if st.button("⏹️ איפוס", key="d2_reset2", use_container_width=True):
+            S["demo2_state"] = "setup"
+            st.rerun()
+
+    # Progress bar
+    pct = new_frame / total * 100
+    st.markdown(f"""<div style="background:{BDR};border-radius:4px;height:5px;margin:6px 0 14px;">
+        <div style="background:{CYAN};width:{pct:.1f}%;height:100%;border-radius:4px;"></div>
+    </div>""", unsafe_allow_html=True)
+
+    # Current values
+    dates  = [v[0] for v in r["daily_vals"][:new_frame]]
+    values = [v[1] for v in r["daily_vals"][:new_frame]]
+    bh     = r["bh_vals"][:new_frame]
+
+    if not dates:
+        S["demo2_frame"] = new_frame
+        time.sleep(delay)
+        st.rerun()
+        return
+
+    cur_val = values[-1]
+    cur_dt  = dates[-1]
+    ret_pct = (cur_val - budget) / budget * 100
+    pnl_c   = GRN if ret_pct >= 0 else RED
+
+    # Stats row
+    sc = st.columns(4)
+    for col, lbl, val, vc in [
+        (sc[0], "שווי נוכחי",     f"${cur_val:,.0f}",                      CYAN),
+        (sc[1], "תשואה",          f"{ret_pct:+.1f}%",                       pnl_c),
+        (sc[2], "תאריך",          cur_dt.strftime("%d/%m/%Y"),               TX2),
+        (sc[3], "יעד",            f"${tgt_val:,.0f} ({S['demo2_target_pct']:.0f}%)", AMB),
+    ]:
+        col.markdown(f"""<div class="sumcard">
+            <div style="font-size:.7rem;color:{TX3};margin-bottom:3px;">{lbl}</div>
+            <div style="font-size:.92rem;font-weight:700;color:{vc};">{val}</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    # Chart
+    fig = _draw_portfolio_chart(dates, values, bh, budget, tgt_val,
+                                S["demo2_target_pct"])
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Live trade log (last 10 up to current date)
+    cur_str = cur_dt.strftime("%d/%m/%Y")
+    recent  = [t for t in r["trade_log"] if _date_le(t["date"], cur_str)][-10:]
+    if recent:
+        st.markdown(f"<div style='font-weight:700;color:{TX};font-size:.86rem;"
+                    f"direction:rtl;margin-bottom:8px;'>📋 עסקאות אחרונות</div>",
+                    unsafe_allow_html=True)
+        for t in reversed(recent):
+            bc = _trade_color(t)
+            st.markdown(f"""<div style="border-right:3px solid {bc};background:{SURF2};
+                border-radius:0 7px 7px 0;padding:8px 12px;margin-bottom:5px;
+                font-size:.79rem;color:{TX};direction:rtl;">{_trade_line(t)}</div>""",
+                unsafe_allow_html=True)
+
+    # Advance
+    S["demo2_frame"] = new_frame
+    if new_frame < total:
+        time.sleep(delay)
+        st.rerun()
+    else:
+        S["demo2_state"] = "complete"
+        st.rerun()
+
+
+# ── Final report ──────────────────────────────────────────────────────────────
+def _demo_report():
+    S      = st.session_state
+    r      = S["demo2_results"]
+    budget = S["demo2_budget"]
+    tp     = S["demo2_target_pct"]
+    tgt    = budget * (1 + tp / 100)
+    ret    = r["total_ret"]
+    bh_r   = r["bh_ret"]
+
+    # Grade
+    if r["tgt_reached"] and ret > bh_r * 1.3:    grade, gc = "מצוין ⭐", GRN
+    elif r["tgt_reached"]:                         grade, gc = "טוב 👍",   CYAN
+    elif ret > 0 and ret > bh_r * 0.7:            grade, gc = "בינוני 👌", AMB
+    else:                                          grade, gc = "גרוע 👎",  RED
+
+    reached_c = GRN if r["tgt_reached"] else RED
+    reached_s = "✅ כן — הגענו ליעד!" if r["tgt_reached"] else "❌ לא הגענו ליעד"
+
+    # Header summary
+    st.markdown(f"""<div style="background:{SURF};border:1px solid {BDR};
+        border-radius:14px;padding:24px 28px;direction:rtl;margin-bottom:16px;">
+        <div style="font-size:1.1rem;font-weight:800;color:{TX};margin-bottom:16px;">
+            📊 דוח סיכום — {S['demo2_start_year']}–{S['demo2_end_year']} ·
+            <span style="color:{CYAN};">{', '.join(S['demo2_tickers'])}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+            <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:.7rem;color:{TX3};margin-bottom:5px;">האם הגענו ליעד?</div>
+                <div style="font-size:.95rem;font-weight:700;color:{reached_c};">{reached_s}</div>
+                {"<div style='font-size:.74rem;color:"+TX2+";margin-top:4px;'>ב-"+r['tgt_date']+"</div>" if r['tgt_reached'] and r['tgt_date'] else ""}
+            </div>
+            <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:.7rem;color:{TX3};margin-bottom:5px;">תשואה כוללת</div>
+                <div style="font-size:1.1rem;font-weight:800;color:{GRN if ret>=0 else RED};">{ret:+.1f}%</div>
+                <div style="font-size:.74rem;color:{TX2};margin-top:3px;">קנה והחזק: {bh_r:+.1f}%</div>
+            </div>
+            <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:.7rem;color:{TX3};margin-bottom:5px;">עודף על קנה-והחזק</div>
+                <div style="font-size:1.1rem;font-weight:800;color:{GRN if ret>bh_r else RED};">{ret-bh_r:+.1f}%</div>
+            </div>
+            <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:.7rem;color:{TX3};margin-bottom:5px;">ציון AI</div>
+                <div style="font-size:1.1rem;font-weight:800;color:{gc};">{grade}</div>
+            </div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    # Full chart
+    dates  = [v[0] for v in r["daily_vals"]]
+    values = [v[1] for v in r["daily_vals"]]
+    fig = _draw_portfolio_chart(dates, values, r["bh_vals"], budget, tgt,
+                                tp, r.get("tgt_date"))
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Stats
+    sc = st.columns(4)
+    for col, lbl, val, vc in [
+        (sc[0], "שווי סופי AI",    f"${r['final_val']:,.0f}",  CYAN),
+        (sc[1], "שווי סופי BH",    f"${r['final_bh']:,.0f}",   TX2),
+        (sc[2], "עסקאות בוצעו",    str(r["n_buys"]),            TX),
+        (sc[3], "רמת סיכון",       S["demo2_risk"],              AMB),
+    ]:
+        col.markdown(f"""<div class="sumcard">
+            <div style="font-size:.7rem;color:{TX3};margin-bottom:4px;">{lbl}</div>
+            <div style="font-size:1rem;font-weight:700;color:{vc};">{val}</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+
+    # Best / worst trades
+    bt, wt = r.get("best_trade"), r.get("worst_trade")
+    if bt or wt:
+        bc1, bc2 = st.columns(2)
+        if bt:
+            bc1.markdown(f"""<div style="background:{SURF};border:1px solid {GRN}55;
+                border-radius:12px;padding:16px;direction:rtl;">
+                <div style="font-size:.75rem;color:{GRN};font-weight:700;margin-bottom:8px;">
+                    🏆 עסקה הטובה ביותר
+                </div>
+                <div style="font-size:1rem;font-weight:700;color:{TX};">{bt['sym']}</div>
+                <div style="font-size:.82rem;color:{TX2};margin-top:4px;">
+                    כניסה ב-${bt['entry_price']:,.2f} · יציאה ב-${bt['price']:,.2f}
+                </div>
+                <div style="font-size:1.1rem;font-weight:800;color:{GRN};margin-top:6px;">
+                    +${bt['pnl_dollar']:,.0f} ({bt['pnl_pct']:+.1f}%)
+                </div>
+            </div>""", unsafe_allow_html=True)
+        if wt:
+            bc2.markdown(f"""<div style="background:{SURF};border:1px solid {RED}55;
+                border-radius:12px;padding:16px;direction:rtl;">
+                <div style="font-size:.75rem;color:{RED};font-weight:700;margin-bottom:8px;">
+                    💔 עסקה הגרועה ביותר
+                </div>
+                <div style="font-size:1rem;font-weight:700;color:{TX};">{wt['sym']}</div>
+                <div style="font-size:.82rem;color:{TX2};margin-top:4px;">
+                    כניסה ב-${wt['entry_price']:,.2f} · יציאה ב-${wt['price']:,.2f}
+                </div>
+                <div style="font-size:1.1rem;font-weight:800;color:{RED};margin-top:6px;">
+                    ${wt['pnl_dollar']:,.0f} ({wt['pnl_pct']:+.1f}%)
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+    # Full trade log
+    st.markdown(f"<div style='font-weight:700;color:{TX};font-size:.9rem;"
+                f"direction:rtl;margin:16px 0 10px;'>📋 יומן עסקאות מלא "
+                f"({len(r['trade_log'])} פעולות)</div>", unsafe_allow_html=True)
+    for t in r["trade_log"]:
+        bc = _trade_color(t)
+        st.markdown(f"""<div style="border-right:3px solid {bc};background:{SURF2};
+            border-radius:0 7px 7px 0;padding:8px 12px;margin-bottom:5px;
+            font-size:.79rem;color:{TX};direction:rtl;">{_trade_line(t)}</div>""",
+            unsafe_allow_html=True)
+
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    if st.button("🔄 סימולציה חדשה", type="primary", key="d2_new"):
+        S["demo2_state"] = "setup"
+        st.rerun()
+
+
+# ── Main router for demo page ─────────────────────────────────────────────────
+def page_demo():
+    S = st.session_state
+    st.markdown(f"""<div class="section-head">🎮 סימולטור מסחר אוטונומי</div>""",
+                unsafe_allow_html=True)
+
+    state = S.get("demo2_state", "setup")
+
+    if state == "setup":
+        _demo_setup()
+
+    elif state == "computing":
+        with st.spinner("⏳ מחשב סימולציה היסטורית… עשוי לקחת 10-30 שניות"):
+            results = _run_backtest(
+                S["demo2_tickers"], S["demo2_start_year"], S["demo2_end_year"],
+                S["demo2_budget"],  S["demo2_target_pct"], S["demo2_risk"],
+            )
+        if results is None or not results["daily_vals"]:
+            st.error("לא ניתן לטעון נתונים לתקופה שנבחרה. נסה מניות אחרות או שנים אחרות.")
+            S["demo2_state"] = "setup"
+        else:
+            S["demo2_results"] = results
+            S["demo2_frame"]   = 0
+            S["demo2_state"]   = "animating"
+        st.rerun()
+
+    elif state == "animating":
+        _demo_animate()
+
+    elif state == "complete":
+        _demo_report()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: COMPARE — השוואת מניות
+# ══════════════════════════════════════════════════════════════════════════════
+def page_compare():
+    st.markdown(f"""<div class="section-head">⚖️ השוואת מניות</div>""",
+                unsafe_allow_html=True)
+
+    COLORS = [CYAN, AMB, GRN, PUR]
+    all_syms = [s["t"] for s in HOT]
+
+    # ── Manual ticker input ───────────────────────────────────────────────────
+    mc1, mc2, _ = st.columns([2.2, 0.8, 4])
+    with mc1:
+        manual = st.text_input("", placeholder="הוסף סמול ידנית — AAPL, MSFT...",
+                               label_visibility="collapsed", key="cmp_manual").upper().strip()
+    with mc2:
+        if st.button("➕ הוסף", key="cmp_add", type="primary", use_container_width=True):
+            if manual and manual not in st.session_state["compare_tickers"]:
+                st.session_state["compare_tickers"] = (
+                    st.session_state["compare_tickers"] + [manual])[:4]
+                st.rerun()
+
+    # ── Multiselect ───────────────────────────────────────────────────────────
+    sel = st.multiselect(
+        "בחר עד 4 מניות להשוואה:",
+        all_syms,
+        default=[t for t in st.session_state["compare_tickers"] if t in all_syms],
+        max_selections=4, key="cmp_sel",
+    )
+    extra = [t for t in st.session_state["compare_tickers"] if t not in all_syms]
+    compare_tickers = list(dict.fromkeys(sel + extra))[:4]
+    st.session_state["compare_tickers"] = compare_tickers
+
+    if len(compare_tickers) < 2:
+        st.info("בחר לפחות 2 מניות להשוואה.")
+        return
+
+    # ── Period ────────────────────────────────────────────────────────────────
+    period_map = {"1M": "1mo", "3M": "3mo", "6M": "6mo", "1Y": "1y", "2Y": "2y"}
+    period_key = st.radio("תקופה:", list(period_map.keys()), index=2,
+                           horizontal=True, key="cmp_period")
+    period = period_map[period_key]
+
+    # ── Load data ─────────────────────────────────────────────────────────────
+    with st.spinner("טוען נתוני השוואה..."):
+        def _load(sym): return sym, fetch_history(sym, period)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+            dfs = {sym: df for sym, df in ex.map(lambda s: _load(s), compare_tickers)
+                   if not df.empty}
+
+    if not dfs:
+        st.error("לא ניתן לטעון נתונים.")
+        return
+
+    # ── Normalized price chart ────────────────────────────────────────────────
+    fig1 = go.Figure()
+    for i, (sym, df) in enumerate(dfs.items()):
+        base = float(df["Close"].iloc[0])
+        norm = (df["Close"] / base - 1) * 100
+        fig1.add_trace(go.Scatter(x=df.index, y=norm, name=sym,
+                                  line=dict(color=COLORS[i % 4], width=2.2)))
+    fig1.add_hline(y=0, line=dict(color=TX3, dash="dot", width=1))
+    fig1.update_layout(**{**PB, "height": 380,
+                          "yaxis_title": f"תשואה % מתחילת {period_key}"})
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # ── RSI comparison chart ──────────────────────────────────────────────────
+    fig2 = go.Figure()
+    for i, (sym, df) in enumerate(dfs.items()):
+        if "RSI" in df.columns:
+            fig2.add_trace(go.Scatter(x=df.index, y=df["RSI"], name=f"RSI {sym}",
+                                      line=dict(color=COLORS[i % 4], width=1.8)))
+    fig2.add_hrect(y0=65, y1=100, fillcolor="rgba(239,68,68,0.06)", line_width=0)
+    fig2.add_hrect(y0=0, y1=35, fillcolor="rgba(34,197,94,0.06)", line_width=0)
+    fig2.add_hline(y=65, line=dict(color=RED, dash="dot", width=1))
+    fig2.add_hline(y=35, line=dict(color=GRN, dash="dot", width=1))
+    fig2.update_layout(**{**PB, "height": 240, "yaxis_title": "RSI"})
+    fig2.update_yaxes(range=[0, 100])
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # ── Comparison table ──────────────────────────────────────────────────────
+    st.markdown(f"<div style='font-weight:700;color:{TX};font-size:.92rem;"
+                f"direction:rtl;margin:14px 0 10px;'>📊 טבלת השוואה</div>",
+                unsafe_allow_html=True)
+
+    with st.spinner("טוען נתוני יסוד..."):
+        def _load_info(sym): return sym, fetch_info(sym)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+            all_info = dict(ex.map(lambda s: _load_info(s), compare_tickers))
+
+    hcols = st.columns([1.1, 1.1, 1.1, 1, 1, 1.2, 1.1, 1.1])
+    for col, lbl in zip(hcols, ["מניה","מחיר","שינוי יומי",
+                                  f"תשואה {period_key}","RSI",
+                                  "שווי שוק","P/E","צמיחה"]):
+        col.markdown(f"<div style='color:{TX3};font-size:.73rem;font-weight:700;"
+                     f"direction:rtl;border-bottom:1px solid {BDR};padding-bottom:5px;'>"
+                     f"{lbl}</div>", unsafe_allow_html=True)
+
+    for i, (sym, df) in enumerate(dfs.items()):
+        info  = all_info.get(sym, {})
+        cl    = float(df["Close"].iloc[-1])
+        prev  = float(df["Close"].iloc[-2]) if len(df) > 1 else cl
+        chg   = (cl - prev) / prev * 100
+        first = float(df["Close"].iloc[0])
+        pret  = (cl / first - 1) * 100
+        rsi   = (float(df["RSI"].iloc[-1])
+                 if "RSI" in df.columns and not pd.isna(df["RSI"].iloc[-1]) else None)
+        mc    = info.get("marketCap")
+        pe    = info.get("trailingPE")
+        revg  = info.get("revenueGrowth")
+
+        chg_c  = GRN if chg >= 0  else RED
+        ret_c  = GRN if pret >= 0 else RED
+        rsi_c  = (GRN if rsi and rsi < 35 else RED if rsi and rsi > 65 else TX2)
+
+        rc = st.columns([1.1, 1.1, 1.1, 1, 1, 1.2, 1.1, 1.1])
+        bg = f"background:{SURF}" if i % 2 == 0 else f"background:{SURF2}"
+
+        rc[0].markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
+                       f"<b style='color:{COLORS[i%4]};font-size:1rem;'>{sym}</b></div>",
+                       unsafe_allow_html=True)
+        rc[1].markdown(f"<div style='{bg};padding:10px 4px;'>${cl:,.2f}</div>",
+                       unsafe_allow_html=True)
+        rc[2].markdown(f"<div style='{bg};padding:10px 4px;'>"
+                       f"<span style='color:{chg_c};font-weight:600;'>"
+                       f"{'+' if chg>=0 else ''}{chg:.1f}%</span></div>",
+                       unsafe_allow_html=True)
+        rc[3].markdown(f"<div style='{bg};padding:10px 4px;'>"
+                       f"<span style='color:{ret_c};font-weight:600;'>"
+                       f"{'+' if pret>=0 else ''}{pret:.1f}%</span></div>",
+                       unsafe_allow_html=True)
+        rc[4].markdown(f"<div style='{bg};padding:10px 4px;'>"
+                       f"<span style='color:{rsi_c};font-weight:600;'>"
+                       f"{rsi:.0f if rsi else '—'}</span></div>",
+                       unsafe_allow_html=True)
+        rc[5].markdown(f"<div style='{bg};padding:10px 4px;color:{TX2};'>"
+                       f"{_fmt_large(mc) if mc else '—'}</div>", unsafe_allow_html=True)
+        rc[6].markdown(f"<div style='{bg};padding:10px 4px;color:{TX2};'>"
+                       f"{f'{pe:.1f}x' if pe else '—'}</div>", unsafe_allow_html=True)
+        rc[7].markdown(f"<div style='{bg};padding:10px 4px;'>"
+                       f"<span style='color:{GRN if revg and revg>0 else RED};font-weight:600;'>"
+                       f"{f'{revg*100:.0f}%' if revg else '—'}</span></div>",
+                       unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROUTER
+# ══════════════════════════════════════════════════════════════════════════════
+_nav()
+
+_page = st.session_state["page"]
+if   _page == "home":      page_home()
+elif _page == "portfolio": page_portfolio()
+elif _page == "watchlist": page_watchlist()
+elif _page == "compare":   page_compare()
+elif _page == "demo":      page_demo()
+
+st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
+st.caption("⚠️ אפליקציה זו מיועדת למטרות לימוד בלבד ואינה מהווה ייעוץ פיננסי.")
