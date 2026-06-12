@@ -6,3 +6,6 @@ __pycache__/
 .env
 portfolio.json
 watchlist.json
+agent_state.json
+notifications.json
+agent_logs.json

@@ -3,8 +3,9 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import json, os, time, concurrent.futures
+import json, os, time, concurrent.futures, threading
 from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CONSTANTS
@@ -112,6 +113,290 @@ def load_json(path):
 def save_json(path, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AGENT SYSTEM — state, notifications, worker threads
+# ══════════════════════════════════════════════════════════════════════════════
+AGENT_STATE_FILE  = "agent_state.json"
+NOTIFICATIONS_FILE= "notifications.json"
+AGENT_LOGS_FILE   = "agent_logs.json"
+
+_agent_threads: dict = {}
+_agent_lock = threading.Lock()
+
+def _load_agent_state() -> dict:
+    try:
+        with open(AGENT_STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {
+            "monitor": {"enabled": True,  "status": "ממתין", "last_run": None, "interval": 30},
+            "scanner": {"enabled": True,  "status": "ממתין", "last_run": None, "interval": 60},
+            "news":    {"enabled": True,  "status": "ממתין", "last_run": None, "interval": 15},
+        }
+
+def _save_agent_state(state: dict):
+    with _agent_lock:
+        with open(AGENT_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+
+def _load_notifications() -> list:
+    try:
+        with open(NOTIFICATIONS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def _unread_count() -> int:
+    return sum(1 for n in _load_notifications() if not n.get("read", True))
+
+def _mark_all_read():
+    with _agent_lock:
+        notifs = _load_notifications()
+        for n in notifs:
+            n["read"] = True
+        with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(notifs, f, ensure_ascii=False, indent=2)
+
+def _clear_notifications():
+    with _agent_lock:
+        with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump([], f)
+
+def _add_notification(agent: str, title: str, body: str, level: str = "info", key: str = ""):
+    if key:
+        cutoff = time.time() - 6 * 3600
+        for n in _load_notifications():
+            if n.get("key") == key and n.get("ts", 0) > cutoff:
+                return
+    with _agent_lock:
+        notifs = _load_notifications()
+        notifs.insert(0, {
+            "ts":    time.time(),
+            "agent": agent,
+            "title": title,
+            "body":  body,
+            "level": level,
+            "key":   key,
+            "time":  datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "read":  False,
+        })
+        with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(notifs[:200], f, ensure_ascii=False, indent=2)
+
+def _add_log(agent: str, message: str):
+    with _agent_lock:
+        try:
+            with open(AGENT_LOGS_FILE, encoding="utf-8") as f:
+                logs = json.load(f)
+        except Exception:
+            logs = []
+        logs.insert(0, {
+            "time":    datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "agent":   agent,
+            "message": message,
+        })
+        with open(AGENT_LOGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(logs[:500], f, ensure_ascii=False, indent=2)
+
+def _should_notify(key: str, hours: float = 6) -> bool:
+    cutoff = time.time() - hours * 3600
+    for n in _load_notifications():
+        if n.get("key") == key and n.get("ts", 0) > cutoff:
+            return False
+    return True
+
+# ── Direct (non-cached) data fetch for agent threads ─────────────────────────
+
+def _agent_quote(sym: str) -> dict:
+    try:
+        hist = yf.Ticker(sym).history(period="3mo", interval="1d")
+        if hist.empty or len(hist) < 15:
+            return {}
+        c      = hist["Close"].dropna()
+        price  = float(c.iloc[-1])
+        prev   = float(c.iloc[-2])
+        chg    = (price - prev) / prev * 100
+        d  = c.diff()
+        g  = d.clip(lower=0).rolling(14).mean()
+        lo = (-d.clip(upper=0)).rolling(14).mean()
+        rsi    = float(100 - 100 / (1 + g / lo).iloc[-1])
+        ma50_s = c.rolling(50).mean()
+        ma50   = float(ma50_s.iloc[-1])  if not pd.isna(ma50_s.iloc[-1])  else None
+        ma50_p = float(ma50_s.iloc[-2])  if (ma50 and not pd.isna(ma50_s.iloc[-2])) else None
+        return {"price": price, "chg": chg, "rsi": rsi,
+                "prev": prev, "ma50": ma50, "ma50_prev": ma50_p}
+    except Exception:
+        return {}
+
+# ── Agent worker functions ────────────────────────────────────────────────────
+
+def _run_monitor():
+    portfolio = load_json(PF_FILE)
+    watchlist = load_json(WL_FILE) or []
+    pf_syms   = [h["sym"] for h in portfolio]
+    all_syms  = list(dict.fromkeys(pf_syms + watchlist))
+    _add_log("monitor", f"מתחיל סריקה של {len(all_syms)} מניות")
+    alerts = 0
+    for sym in all_syms:
+        q = _agent_quote(sym)
+        if not q:
+            continue
+        chg, rsi, price = q["chg"], q["rsi"], q["price"]
+        prev, ma50, ma50_p = q["prev"], q.get("ma50"), q.get("ma50_prev")
+        today = datetime.now().strftime("%Y%m%d")
+        hour  = datetime.now().strftime("%Y%m%d_%H")
+        if chg <= -3:
+            k = f"mon_drop_{sym}_{today}"
+            if _should_notify(k):
+                _add_notification("monitor",
+                    f"📉 ירידה חדה: {sym}",
+                    f"המניה ירדה {chg:.1f}% היום — מחיר ${price:,.2f}", "danger", k)
+                alerts += 1
+        if rsi >= 70:
+            k = f"mon_rsi_hi_{sym}_{hour}"
+            if _should_notify(k, 4):
+                _add_notification("monitor",
+                    f"📈 קנייה יתר: {sym}",
+                    f"RSI = {rsi:.0f} — שקול מכירה", "warning", k)
+                alerts += 1
+        elif rsi <= 30:
+            k = f"mon_rsi_lo_{sym}_{hour}"
+            if _should_notify(k, 4):
+                _add_notification("monitor",
+                    f"📉 מכירת יתר: {sym}",
+                    f"RSI = {rsi:.0f} — הזדמנות קנייה אפשרית", "info", k)
+                alerts += 1
+        if ma50 and ma50_p:
+            if prev < ma50_p and price > ma50:
+                k = f"mon_cross_up_{sym}_{today}"
+                if _should_notify(k):
+                    _add_notification("monitor",
+                        f"🟢 פריצה מעל MA50: {sym}",
+                        f"המחיר חצה מעל ממוצע 50 יום (${ma50:,.2f})", "info", k)
+                    alerts += 1
+            elif prev > ma50_p and price < ma50:
+                k = f"mon_cross_dn_{sym}_{today}"
+                if _should_notify(k):
+                    _add_notification("monitor",
+                        f"🔴 שבירה מתחת ל-MA50: {sym}",
+                        f"המחיר ירד מתחת לממוצע 50 יום (${ma50:,.2f})", "warning", k)
+                    alerts += 1
+    _add_log("monitor", f"סריקה הסתיימה — {alerts} התראות חדשות")
+
+def _run_scanner():
+    extra_syms = [
+        ("AAPL","Apple"),("MSFT","Microsoft"),("GOOGL","Alphabet"),
+        ("AMZN","Amazon"),("META","Meta"),("TSLA","Tesla"),
+        ("NFLX","Netflix"),("PYPL","PayPal"),("SHOP","Shopify"),("V","Visa"),
+    ]
+    hot_set = {s["t"] for s in HOT}
+    scan_list = [{"t": s["t"], "n": s["n"]} for s in HOT] + \
+                [{"t": t, "n": n} for t, n in extra_syms if t not in hot_set]
+    _add_log("scanner", f"מתחיל סריקת הזדמנויות על {len(scan_list)} מניות")
+    opps = []
+    for stock in scan_list:
+        sym = stock["t"]
+        q = _agent_quote(sym)
+        if not q:
+            continue
+        rsi, chg, ma50, price = q["rsi"], q["chg"], q.get("ma50"), q["price"]
+        score, reasons = 0, []
+        if rsi < 30:   score += 3; reasons.append(f"RSI={rsi:.0f} מכירת יתר")
+        elif rsi < 40: score += 2; reasons.append(f"RSI={rsi:.0f} נמוך")
+        elif rsi < 50: score += 1; reasons.append(f"RSI={rsi:.0f}")
+        if chg > 2:    score += 1; reasons.append(f"עלייה {chg:.1f}%")
+        elif chg < -2: score -= 1
+        if ma50 and price > ma50: score += 1; reasons.append("מעל MA50")
+        if score >= 2:
+            opps.append({"sym": sym, "score": score, "rsi": rsi,
+                         "chg": chg, "reasons": " · ".join(reasons)})
+    opps.sort(key=lambda x: x["score"], reverse=True)
+    top3 = opps[:3]
+    if top3:
+        k = f"scan_top3_{datetime.now().strftime('%Y%m%d_%H')}"
+        if _should_notify(k, 2):
+            body = "\n".join(f"• {o['sym']}: {o['reasons']}" for o in top3)
+            _add_notification("scanner",
+                f"🔍 הזדמנויות: {', '.join(o['sym'] for o in top3)}",
+                body, "info", k)
+    _add_log("scanner",
+             f"סריקה הסתיימה — {len(opps)} מניות עם פוטנציאל | "
+             f"top 3: {', '.join(o['sym'] for o in top3) if top3 else 'אין'}")
+
+def _run_news_agent():
+    portfolio = load_json(PF_FILE)
+    watchlist = load_json(WL_FILE) or []
+    pf_syms   = [h["sym"] for h in portfolio]
+    all_syms  = list(dict.fromkeys(pf_syms + watchlist))
+    if not all_syms:
+        _add_log("news", "אין מניות בתיק / מעקב"); return
+    today_ts = int(datetime.combine(datetime.now().date(), datetime.min.time()).timestamp())
+    flagged = 0
+    _add_log("news", f"מתחיל ניתוח חדשות עבור {len(all_syms)} מניות")
+    for sym in all_syms:
+        try:
+            items = yf.Ticker(sym).news or []
+            today = [it for it in items if it.get("providerPublishTime", 0) >= today_ts]
+            neg = sum(1 for it in today if _sentiment(it.get("title",""))[0] == "🔴")
+            pos = sum(1 for it in today if _sentiment(it.get("title",""))[0] == "🟢")
+            if neg >= 3:
+                k = f"news_neg3_{sym}_{datetime.now().strftime('%Y%m%d')}"
+                if _should_notify(k):
+                    _add_notification("news",
+                        f"⚠️ {sym} — {neg} חדשות שליליות היום",
+                        f"{neg} שליליות · {pos} חיוביות", "danger", k)
+                    flagged += 1
+            for it in today[:1]:
+                title = it.get("title","")
+                si, _, _ = _sentiment(title)
+                if si == "🔴":
+                    k = f"news_item_{sym}_{abs(hash(title)) % 99999}"
+                    if _should_notify(k, 12):
+                        _add_notification("news",
+                            f"📰 {sym}: {title[:80]}",
+                            f"מ-{it.get('publisher','')}",
+                            "warning", k)
+        except Exception:
+            pass
+    _add_log("news", f"ניתוח חדשות הסתיים — {flagged} מניות מסומנות")
+
+# ── Thread lifecycle ──────────────────────────────────────────────────────────
+
+def _agent_loop(name: str, fn, interval_min: int):
+    while True:
+        state = _load_agent_state()
+        if state.get(name, {}).get("enabled", True):
+            state[name]["status"]   = "פעיל"
+            state[name]["last_run"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            _save_agent_state(state)
+            try:
+                fn()
+                state = _load_agent_state()
+                state[name]["status"] = "ממתין"
+                _save_agent_state(state)
+            except Exception as exc:
+                state = _load_agent_state()
+                state[name]["status"] = "שגיאה"
+                _save_agent_state(state)
+                _add_log(name, f"שגיאה: {str(exc)[:120]}")
+        time.sleep(interval_min * 60)
+
+def _ensure_agents():
+    """Restart any dead agent thread. Called on every page render."""
+    defs = [("monitor", _run_monitor, 30),
+            ("scanner", _run_scanner, 60),
+            ("news",    _run_news_agent, 15)]
+    state = _load_agent_state()
+    for name, fn, interval in defs:
+        if not state.get(name, {}).get("enabled", True):
+            continue
+        t = _agent_threads.get(name)
+        if t is None or not t.is_alive():
+            t = threading.Thread(target=_agent_loop, args=(name, fn, interval),
+                                 daemon=True, name=f"agent-{name}")
+            t.start()
+            _agent_threads[name] = t
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MARKET DATA
@@ -224,30 +509,119 @@ def fetch_news(sym: str) -> list:
     except Exception:
         return []
 
+# ── RSS sources + broad yfinance tickers ─────────────────────────────────────
+_RSS_SOURCES = [
+    ("Yahoo Finance",  "https://finance.yahoo.com/rss/topstories"),
+    ("Reuters",        "https://feeds.reuters.com/reuters/businessNews"),
+    ("CNBC Markets",   "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
+    ("MarketWatch",    "https://feeds.marketwatch.com/marketwatch/topstories/"),
+    ("Benzinga",       "https://www.benzinga.com/feed"),
+]
+_BROAD_TICKERS = [
+    "SPY","QQQ","^GSPC","^DJI","^VIX","GLD","USO","BTC-USD",
+    "AAPL","MSFT","NVDA","TSLA","AMZN","META","GOOGL","JPM","V","NFLX",
+]
+
+def _parse_rss(url: str, source: str, max_items: int = 20) -> list:
+    import urllib.request as _ur, xml.etree.ElementTree as _ET, re as _re
+    from email.utils import parsedate_to_datetime as _pdt
+    try:
+        req = _ur.Request(url, headers={
+            "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                           "AppleWebKit/537.36 Chrome/120 Safari/537.36"),
+            "Accept": "application/rss+xml, application/xml, text/xml, */*",
+        })
+        with _ur.urlopen(req, timeout=7) as resp:
+            data = resp.read()
+        root = _ET.fromstring(data)
+        out = []
+        for item in root.findall(".//item")[:max_items]:
+            title = (item.findtext("title") or "").strip()
+            link  = (item.findtext("link")  or "").strip()
+            desc  = (item.findtext("description") or "").strip()
+            pub   = (item.findtext("pubDate") or "").strip()
+            ts = 0
+            if pub:
+                try: ts = int(_pdt(pub).timestamp())
+                except Exception: pass
+            desc = _re.sub(r"<[^>]+>", "", desc)[:400]
+            if title:
+                out.append({"title": title, "link": link or "#",
+                            "summary": desc, "providerPublishTime": ts,
+                            "publisher": source})
+        return out
+    except Exception:
+        return []
+
 @st.cache_data(ttl=900, show_spinner=False)
 def fetch_general_news() -> list:
+    """Combines RSS feeds + broad yfinance tickers, deduped, sorted by time."""
     seen, news = set(), []
-    for sym in ["SPY", "QQQ", "^GSPC", "^DJI", "GLD"]:
-        try:
-            for item in (yf.Ticker(sym).news or []):
-                t = item.get("title", "")
+
+    # RSS feeds in parallel
+    def _fetch_rss(args):
+        src, url = args
+        return _parse_rss(url, src)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(_RSS_SOURCES)) as ex:
+        for batch in ex.map(_fetch_rss, [(s, u) for s, u in _RSS_SOURCES]):
+            for item in batch:
+                t = item.get("title","")
                 if t and t not in seen:
-                    seen.add(t)
-                    news.append(item)
+                    seen.add(t); news.append(item)
+
+    # yfinance tickers as fallback / supplement
+    def _fetch_yf(sym):
+        try: return yf.Ticker(sym).news or []
+        except: return []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(_BROAD_TICKERS)) as ex:
+        for batch in ex.map(_fetch_yf, _BROAD_TICKERS):
+            for item in batch:
+                t = item.get("title","")
+                if t and t not in seen:
+                    seen.add(t); news.append(item)
+
+    news.sort(key=lambda x: x.get("providerPublishTime", 0), reverse=True)
+    return news[:30]
+
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_market_overview() -> dict:
+    """Returns live price+change for major indices."""
+    tickers = {
+        "S&P 500":   "^GSPC", "נאסד\"ק": "^IXIC",
+        "דאו":       "^DJI",  "VIX":      "^VIX",
+        "זהב":       "GC=F",  "נפט":      "CL=F",
+        "ביטקוין":   "BTC-USD","דולר/שקל": "ILS=X",
+    }
+    def _get(args):
+        name, sym = args
+        try:
+            h = yf.Ticker(sym).history(period="2d", interval="1d")
+            if len(h) >= 2:
+                c = float(h["Close"].iloc[-1])
+                p = float(h["Close"].iloc[-2])
+                return name, {"price": c, "chg": (c-p)/p*100, "sym": sym}
         except Exception:
             pass
-    news.sort(key=lambda x: x.get("providerPublishTime", 0), reverse=True)
-    return news[:10]
+        return name, None
+
+    result = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        for name, data in ex.map(_get, list(tickers.items())):
+            if data:
+                result[name] = data
+    return result
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def translate_to_hebrew(text: str) -> str:
     try:
-        import urllib.request, urllib.parse, json as _json
+        import urllib.request as _ur, urllib.parse as _up, json as _j
         url = ("https://translate.googleapis.com/translate_a/single"
-               f"?client=gtx&sl=en&tl=iw&dt=t&q={urllib.parse.quote(text[:500])}")
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=5) as r:
-            data = _json.loads(r.read())
+               f"?client=gtx&sl=en&tl=iw&dt=t&q={_up.quote(text[:500])}")
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=5) as r:
+            data = _j.loads(r.read())
             return "".join(p[0] for p in data[0] if p[0])
     except Exception:
         return text
@@ -260,22 +634,44 @@ def _time_ago(ts: int) -> str:
     return f"לפני {diff // 86400} ימים"
 
 def _sentiment(title: str) -> tuple:
-    """Returns (emoji, Hebrew label, color)."""
     t = title.lower()
     pos = sum(1 for w in [
         "surge","gain","rise","rally","soar","jump","climb","beat","record",
         "growth","profit","strong","bullish","boost","high","win","exceed",
-        "positive","upgrade","outperform","top","above","better","robust",
+        "positive","upgrade","outperform","better","robust","launch","expand",
     ] if w in t)
     neg = sum(1 for w in [
         "fall","drop","decline","loss","miss","concern","risk","bear","weak",
         "cut","crash","plunge","sink","tumble","warning","fear","down","below",
         "layoff","fire","downgrade","underperform","recession","tariff",
-        "sanction","halt","probe","fine","penalty","inflation","slowdown",
+        "sanction","halt","probe","fine","penalty","slowdown","bankrupt",
     ] if w in t)
     if pos > neg: return "🟢", "חיובי", GRN
     if neg > pos: return "🔴", "שלילי", RED
     return "🟡", "ניטרלי", AMB
+
+def _categorize(title: str) -> tuple:
+    """Returns (icon, Hebrew tag, color) or ('','','') if generic."""
+    t = title.lower()
+    if any(w in t for w in ["ipo","initial public offering","goes public",
+                              "debut","listing","direct listing","spac"]):
+        return "🚀", "הנפקה (IPO)", AMB
+    if any(w in t for w in ["earnings","quarterly","eps","revenue beat",
+                              "revenue miss","q1 ","q2 ","q3 ","q4 ","net income"]):
+        return "📊", "רווחים", CYAN
+    if any(w in t for w in ["fed ","federal reserve","interest rate","inflation",
+                              "cpi","gdp","fomc","powell","tariff","trade war","recession"]):
+        return "🏦", "מאקרו", PUR
+    if any(w in t for w in ["merger","acquisition","takeover","deal","buys ",
+                              "acquires","buyout","acquire"]):
+        return "🤝", "מיזוג/רכישה", GRN
+    if any(w in t for w in ["crypto","bitcoin","ethereum","blockchain","btc","eth"]):
+        return "₿", "קריפטו", AMB
+    if any(w in t for w in ["oil","opec","crude","natural gas","energy sector"]):
+        return "🛢️", "אנרגיה", RED
+    if any(w in t for w in ["layoff","job cut","firing","workforce","redundan"]):
+        return "👥", "כוח אדם", RED
+    return "", "", ""
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AUTONOMOUS BACKTEST SIMULATOR
@@ -736,7 +1132,7 @@ def _nav():
     </div>""", unsafe_allow_html=True)
 
     mob_lbl = "📱" if not st.session_state.get("mobile_mode") else "🖥️"
-    _, b1, b2, b3, b4, b5, b6, b7 = st.columns([1.2, 1, 1, 1, 1, 1, 1, 0.45])
+    _, b1, b2, b3, b4, b5, b6, b7, b8 = st.columns([1.2, 1, 1, 1, 1, 1, 1, 1.2, 0.45])
     with b1:
         if st.button("🏠 ראשי", key="nb_home", use_container_width=True,
                      type="primary" if p == "home" else "secondary"):
@@ -769,6 +1165,13 @@ def _nav():
             st.session_state["page"] = "news"
             st.rerun()
     with b7:
+        _uc = _unread_count()
+        _ag_lbl = f"🤖 סוכנים 🔴{_uc}" if _uc > 0 else "🤖 סוכנים"
+        if st.button(_ag_lbl, key="nb_agents", use_container_width=True,
+                     type="primary" if p == "agents" else "secondary"):
+            st.session_state["page"] = "agents"
+            st.rerun()
+    with b8:
         if st.button(mob_lbl, key="nb_mob", use_container_width=True,
                      help="החלף למצב נייד / מחשב"):
             st.session_state["mobile_mode"] = not st.session_state.get("mobile_mode", False)
@@ -1418,6 +1821,7 @@ def _stock_detail(sym: str):
 # PAGE: HOME — Hot Stocks Scanner
 # ══════════════════════════════════════════════════════════════════════════════
 def page_home():
+    st_autorefresh(interval=60_000, key="home_refresh")   # every 60 s
     st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
         <div style="font-size:1.5rem;font-weight:800;color:{TX};">🔥 מניות חמות לצפייה</div>
         <div style="color:{TX2};font-size:.83rem;margin-top:3px;">
@@ -1579,6 +1983,7 @@ def page_home():
 # PAGE: PORTFOLIO — התיק שלי
 # ══════════════════════════════════════════════════════════════════════════════
 def page_portfolio():
+    st_autorefresh(interval=30_000, key="pf_refresh_auto")   # every 30 s
     portfolio = load_json(PF_FILE)
 
     hdr1, hdr2 = st.columns([5, 1])
@@ -2352,6 +2757,7 @@ def page_compare():
 # PAGE: NEWS — עדכוני שוק
 # ══════════════════════════════════════════════════════════════════════════════
 def page_news():
+    st_autorefresh(interval=900_000, key="news_refresh_auto")  # every 15 min
     portfolio = load_json(PF_FILE)
     watchlist = load_json(WL_FILE)
     pf_syms   = [h["sym"] for h in portfolio]
@@ -2371,8 +2777,37 @@ def page_news():
     with h3:
         if st.button("🔄 רענן", key="news_refresh", use_container_width=True):
             fetch_general_news.clear()
+            fetch_market_overview.clear()
             fetch_news.clear()
             st.rerun()
+
+    # ════════════════════════════════════════════════════════════════════════
+    # MARKET OVERVIEW BAR
+    # ════════════════════════════════════════════════════════════════════════
+    with st.spinner("טוען נתוני שוק..."):
+        overview = fetch_market_overview()
+
+    if overview:
+        tiles = list(overview.items())
+        cols  = st.columns(len(tiles))
+        for col, (name, d) in zip(cols, tiles):
+            chg   = d["chg"]
+            color = GRN if chg >= 0 else RED
+            arrow = "▲" if chg >= 0 else "▼"
+            price = d["price"]
+            price_s = (f"${price:,.0f}" if price >= 1000
+                       else f"${price:,.2f}" if price >= 1
+                       else f"${price:.4f}")
+            col.markdown(
+                f'<div style="background:{SURF2};border:1px solid {BDR};'
+                f'border-top:2px solid {color};border-radius:10px;padding:10px 8px;'
+                f'text-align:center;direction:rtl;">'
+                f'<div style="font-size:.65rem;color:{TX3};margin-bottom:3px;">{name}</div>'
+                f'<div style="font-size:.88rem;font-weight:700;color:{TX};">{price_s}</div>'
+                f'<div style="font-size:.72rem;color:{color};font-weight:600;">'
+                f'{arrow} {abs(chg):.2f}%</div></div>',
+                unsafe_allow_html=True)
+        st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════════════════════
     # SECTION 1 — General market news
@@ -2382,18 +2817,33 @@ def page_news():
         f'padding:16px 0 12px;border-bottom:2px solid {BDR};margin-bottom:16px;">'
         f'🌍 חדשות שוק כלליות</div>', unsafe_allow_html=True)
 
-    with st.spinner("טוען חדשות שוק..."):
+    with st.spinner("טוען חדשות מ-RSS ו-Yahoo Finance..."):
         gen_news = fetch_general_news()
 
     if not gen_news:
         st.markdown(f"<div style='color:{TX2};direction:rtl;'>לא נמצאו חדשות כרגע.</div>",
                     unsafe_allow_html=True)
     else:
-        st.markdown(
-            f"<div style='color:{TX3};font-size:.76rem;direction:rtl;margin-bottom:10px;'>"
-            f"לחץ על כותרת לקריאת סיכום</div>", unsafe_allow_html=True)
+        # Filter tabs: All / by category
+        CAT_OPTS = ["הכל", "🚀 הנפקות", "📊 רווחים", "🏦 מאקרו", "🤝 מיזוגים"]
+        cat_filter = st.radio("סנן חדשות:", CAT_OPTS, horizontal=True, key="news_cat")
 
-        for item in gen_news:
+        def _cat_match(title):
+            ci, _, _ = _categorize(title)
+            return {
+                "🚀 הנפקות":  ci == "🚀",
+                "📊 רווחים":  ci == "📊",
+                "🏦 מאקרו":   ci == "🏦",
+                "🤝 מיזוגים": ci == "🤝",
+            }.get(cat_filter, True)
+
+        shown = [it for it in gen_news if cat_filter == "הכל" or _cat_match(it.get("title",""))]
+
+        st.markdown(
+            f"<div style='color:{TX3};font-size:.75rem;direction:rtl;margin-bottom:10px;'>"
+            f"{len(shown)} כתבות · לחץ להרחבה</div>", unsafe_allow_html=True)
+
+        for item in shown[:20]:
             title     = item.get("title", "")
             link      = item.get("link", "#")
             publisher = item.get("publisher", "")
@@ -2402,25 +2852,33 @@ def page_news():
             if not title:
                 continue
 
-            time_str   = _time_ago(pub_ts) if pub_ts else ""
-            src_str    = f"{time_str} — {publisher}" if publisher else time_str
-            si, sl, sc = _sentiment(title)
+            time_str       = _time_ago(pub_ts) if pub_ts else ""
+            src_str        = f"{time_str} — {publisher}" if publisher else time_str
+            si, sl, sc     = _sentiment(title)
+            cat_i, cat_l, cat_c = _categorize(title)
+            heb_title      = translate_to_hebrew(title)
 
-            with st.spinner(""):
-                heb_title = translate_to_hebrew(title)
+            cat_badge = (
+                f"<span style='background:{cat_c}22;color:{cat_c};font-size:.68rem;"
+                f"font-weight:700;padding:1px 8px;border-radius:6px;margin-right:6px;'>"
+                f"{cat_i} {cat_l}</span>"
+            ) if cat_i else ""
 
-            with st.expander(f"{si} {heb_title}"):
+            expander_lbl = f"{si} {heb_title}"
+            with st.expander(expander_lbl):
                 st.markdown(
                     f'<div style="direction:rtl;">'
-                    f'<div style="font-size:.75rem;color:{TX3};margin-bottom:8px;">{src_str}</div>'
+                    f'<div style="display:flex;align-items:center;gap:6px;'
+                    f'flex-wrap:wrap;margin-bottom:8px;">'
                     f'<span style="background:{sc}22;color:{sc};font-size:.72rem;'
                     f'font-weight:700;padding:2px 10px;border-radius:8px;">'
-                    f'{si} {sl}</span>'
+                    f'{si} {sl}</span>{cat_badge}'
+                    f'<span style="font-size:.72rem;color:{TX3};">{src_str}</span></div>'
                     + (f'<div style="font-size:.83rem;color:{TX2};line-height:1.65;'
-                       f'margin-top:10px;direction:ltr;">{summary}</div>' if summary else "")
-                    + f'<div style="margin-top:10px;">'
-                      f'<a href="{link}" target="_blank" style="color:{CYAN};font-size:.78rem;">'
-                      f'קרא את הכתבה המלאה ↗</a></div></div>',
+                       f'direction:ltr;margin-bottom:10px;">{summary}</div>' if summary else "")
+                    + f'<a href="{link}" target="_blank" '
+                      f'style="color:{CYAN};font-size:.78rem;">'
+                      f'קרא את הכתבה המלאה ↗</a></div>',
                     unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════════════════════
@@ -2627,8 +3085,178 @@ def page_news():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PAGE: AGENTS — מרכז סוכנים
+# ══════════════════════════════════════════════════════════════════════════════
+def page_agents():
+    st_autorefresh(interval=15_000, key="agents_refresh_auto")  # every 15 s
+    AGENT_META = [
+        ("monitor", "📡", "סוכן ניטור",  "בודק ירידות, RSI ופריצות MA50 בתיק ובמעקב", 30),
+        ("scanner", "🔍", "סוכן סריקה",  "סורק 30+ מניות ומוצא הזדמנויות לפי ציון", 60),
+        ("news",    "📰", "סוכן חדשות",  "מנתח סנטימנט חדשות ומדגיל עודף שלילי", 15),
+    ]
+    AGENT_FNS = {"monitor": _run_monitor, "scanner": _run_scanner, "news": _run_news_agent}
+    AGENT_ICONS = {"monitor": "📡", "scanner": "🔍", "news": "📰"}
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    hh1, hh2 = st.columns([5, 1])
+    with hh1:
+        st.markdown(f'<div class="section-head">🤖 מרכז סוכנים</div>',
+                    unsafe_allow_html=True)
+    with hh2:
+        if st.button("🔄 רענן", key="ag_pg_refresh", use_container_width=True):
+            st.rerun()
+
+    # ── Agent status cards ────────────────────────────────────────────────────
+    state = _load_agent_state()
+    cols  = st.columns(3, gap="medium")
+
+    for col, (name, icon, label, desc, interval) in zip(cols, AGENT_META):
+        ag      = state.get(name, {"enabled": True, "status": "ממתין", "last_run": None})
+        enabled = ag.get("enabled", True)
+        status  = ag.get("status", "ממתין")
+        last_run= ag.get("last_run") or "טרם רץ"
+        t       = _agent_threads.get(name)
+        alive   = t is not None and t.is_alive()
+
+        if not enabled:
+            si, sc = "⚫", TX3; status = "כבוי"
+        elif status == "פעיל":
+            si, sc = "🟢", GRN
+        elif status == "שגיאה":
+            si, sc = "🔴", RED
+        else:
+            si, sc = "🟡", AMB
+
+        bdr = CYAN if (enabled and alive) else BDR
+
+        with col:
+            st.markdown(
+                f'<div style="background:{SURF};border:1px solid {bdr};'
+                f'border-top:3px solid {sc};border-radius:12px;padding:18px;'
+                f'direction:rtl;">'
+                f'<div style="display:flex;justify-content:space-between;'
+                f'align-items:center;margin-bottom:8px;">'
+                f'<div style="font-size:1rem;font-weight:800;color:{TX};">'
+                f'{icon} {label}</div>'
+                f'<div style="font-size:.8rem;font-weight:700;color:{sc};">'
+                f'{si} {status}</div></div>'
+                f'<div style="font-size:.76rem;color:{TX2};margin-bottom:12px;">{desc}</div>'
+                f'<div style="font-size:.72rem;color:{TX3};margin-bottom:3px;">'
+                f'🕐 ריצה אחרונה: {last_run}</div>'
+                f'<div style="font-size:.72rem;color:{TX3};">'
+                f'⏱️ תדירות: כל {interval} דקות</div></div>',
+                unsafe_allow_html=True)
+
+            bc1, bc2 = st.columns(2)
+            with bc1:
+                tog_lbl = "⏸ השבת" if enabled else "▶ הפעל"
+                if st.button(tog_lbl, key=f"ag_tog_{name}", use_container_width=True):
+                    state[name] = ag
+                    state[name]["enabled"] = not enabled
+                    state[name]["status"]  = "ממתין" if not enabled else "כבוי"
+                    _save_agent_state(state)
+                    _ensure_agents()
+                    st.rerun()
+            with bc2:
+                if st.button("▶ הרץ עכשיו", key=f"ag_run_{name}",
+                             use_container_width=True):
+                    with st.spinner(f"מריץ {label}..."):
+                        try:
+                            AGENT_FNS[name]()
+                            state = _load_agent_state()
+                            state[name]["status"]   = "ממתין"
+                            state[name]["last_run"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                            _save_agent_state(state)
+                        except Exception as exc:
+                            state = _load_agent_state()
+                            state[name]["status"] = "שגיאה"
+                            _save_agent_state(state)
+                            _add_log(name, f"שגיאה ידנית: {str(exc)[:100]}")
+                    st.rerun()
+
+    # ── Notification centre ───────────────────────────────────────────────────
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+
+    nc1, nc2, nc3 = st.columns([4, 1.4, 1.2])
+    with nc1:
+        uc = _unread_count()
+        badge = (f"&nbsp;<span style='background:{RED};color:#fff;font-size:.7rem;"
+                 f"border-radius:10px;padding:1px 7px;'>{uc}</span>") if uc > 0 else ""
+        st.markdown(
+            f'<div style="font-size:1.1rem;font-weight:800;color:{TX};direction:rtl;'
+            f'padding-bottom:10px;border-bottom:2px solid {BDR};margin-bottom:14px;">'
+            f'🔔 מרכז התראות{badge}</div>', unsafe_allow_html=True)
+    with nc2:
+        if st.button("✓ סמן הכל כנקרא", key="notif_read", use_container_width=True):
+            _mark_all_read(); st.rerun()
+    with nc3:
+        if st.button("🗑️ נקה הכל", key="notif_clear", use_container_width=True):
+            _clear_notifications(); st.rerun()
+
+    FILTER_OPTS = ["הכל", "📡 ניטור", "🔍 סריקה", "📰 חדשות"]
+    FILTER_MAP  = {"📡 ניטור": "monitor", "🔍 סריקה": "scanner", "📰 חדשות": "news"}
+    fsel  = st.radio("סנן:", FILTER_OPTS, horizontal=True, key="notif_filter")
+    notifs = _load_notifications()
+    if fsel != "הכל":
+        notifs = [n for n in notifs if n.get("agent") == FILTER_MAP.get(fsel)]
+
+    if not notifs:
+        st.markdown(
+            f'<div style="text-align:center;padding:48px;color:{TX2};direction:rtl;">'
+            f'אין התראות כרגע 🎉</div>', unsafe_allow_html=True)
+    else:
+        for n in notifs[:60]:
+            level = n.get("level","info")
+            lc    = RED if level == "danger" else AMB if level == "warning" else CYAN
+            dot   = (f"<span style='color:{CYAN};'>●&nbsp;</span>"
+                     if not n.get("read") else "")
+            ag_ic = AGENT_ICONS.get(n.get("agent",""), "🤖")
+            body  = n.get("body","")
+            body_html = ""
+            if body:
+                for line in body.split("\n"):
+                    if line.strip():
+                        body_html += (f'<div style="font-size:.78rem;color:{TX2};'
+                                      f'line-height:1.6;">{line}</div>')
+            st.markdown(
+                f'<div style="background:{SURF};border:1px solid {BDR};'
+                f'border-right:4px solid {lc};border-radius:0 10px 10px 0;'
+                f'padding:12px 16px;margin-bottom:8px;direction:rtl;">'
+                f'<div style="display:flex;justify-content:space-between;'
+                f'align-items:flex-start;margin-bottom:4px;">'
+                f'<div style="font-size:.86rem;font-weight:700;color:{TX};">'
+                f'{dot}{ag_ic} {n.get("title","")}</div>'
+                f'<div style="font-size:.7rem;color:{TX3};white-space:nowrap;'
+                f'margin-right:8px;">{n.get("time","")}</div></div>'
+                f'{body_html}</div>',
+                unsafe_allow_html=True)
+
+    # ── Activity log ──────────────────────────────────────────────────────────
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    with st.expander("📋 לוג פעילות סוכנים"):
+        try:
+            with open(AGENT_LOGS_FILE, encoding="utf-8") as f:
+                logs = json.load(f)
+        except Exception:
+            logs = []
+        if not logs:
+            st.markdown(f"<div style='color:{TX2};direction:rtl;'>אין לוג עדיין.</div>",
+                        unsafe_allow_html=True)
+        else:
+            for log in logs[:60]:
+                ic = AGENT_ICONS.get(log.get("agent",""), "🤖")
+                st.markdown(
+                    f'<div style="font-size:.78rem;direction:rtl;padding:4px 0;'
+                    f'border-bottom:1px solid {BDR}44;">'
+                    f'<span style="color:{TX3};">{log["time"]}</span>&nbsp;'
+                    f'{ic}&nbsp;<span style="color:{TX};">{log["message"]}</span></div>',
+                    unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ROUTER
 # ══════════════════════════════════════════════════════════════════════════════
+_ensure_agents()
 _nav()
 
 _page = st.session_state["page"]
@@ -2638,6 +3266,7 @@ elif _page == "watchlist": page_watchlist()
 elif _page == "compare":   page_compare()
 elif _page == "demo":      page_demo()
 elif _page == "news":      page_news()
+elif _page == "agents":    page_agents()
 
 st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
 st.caption("⚠️ אפליקציה זו מיועדת למטרות לימוד בלבד ואינה מהווה ייעוץ פיננסי.")
