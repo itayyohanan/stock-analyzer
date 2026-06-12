@@ -1016,6 +1016,18 @@ html, body, .stApp {{
 }}
 .block-container {{ padding: 0 1.8rem 2rem !important; max-width: 1420px !important; }}
 
+/* ── Gradient ambient light ── */
+.stApp::after {{
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 15% 0%, {CYAN}09 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 100%, {PUR}07 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}}
+
 /* ── RTL ── */
 p, div, span, li {{ direction: rtl; }}
 input, textarea, select {{ direction: rtl !important; text-align: right !important; }}
@@ -1023,30 +1035,34 @@ label {{ color: {TX2} !important; font-size: .82rem !important; direction: rtl !
 
 /* ── Buttons ── */
 .stButton > button {{
-    background: {SURF2} !important;
+    background: linear-gradient(160deg, {SURF2} 0%, #0b1a2e 100%) !important;
     color: {TX} !important;
     border: 1px solid {BDR} !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
     font-family: 'Heebo', sans-serif !important;
     font-weight: 600 !important;
     font-size: .86rem !important;
-    transition: all .15s ease !important;
+    transition: all .18s ease !important;
     direction: rtl !important;
+    letter-spacing: .01em !important;
 }}
 .stButton > button:hover {{
-    background: {BDR2} !important;
-    border-color: {CYAN} !important;
+    background: linear-gradient(160deg, {BDR} 0%, {BDR2} 100%) !important;
+    border-color: {CYAN}88 !important;
     color: {CYAN} !important;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(0,180,216,.14) !important;
 }}
 .stButton > button[kind="primary"] {{
-    background: {CYAN}28 !important;
+    background: linear-gradient(135deg, {CYAN}2e 0%, {PUR}1a 100%) !important;
     border-color: {CYAN} !important;
     color: {CYAN} !important;
     font-weight: 700 !important;
+    box-shadow: 0 2px 10px {CYAN}28 !important;
 }}
 .stButton > button[kind="primary"]:hover {{
-    background: {CYAN}44 !important;
+    background: linear-gradient(135deg, {CYAN}4a 0%, {PUR}2e 100%) !important;
+    box-shadow: 0 4px 18px {CYAN}40 !important;
 }}
 
 /* ── Inputs ── */
@@ -1055,27 +1071,28 @@ label {{ color: {TX2} !important; font-size: .82rem !important; direction: rtl !
     background: {SURF2} !important;
     color: {TX} !important;
     border: 1px solid {BDR} !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
     font-family: 'Heebo', sans-serif !important;
     font-size: .9rem !important;
+    transition: border-color .18s, box-shadow .18s !important;
 }}
 .stTextInput > div > div > input:focus,
 .stNumberInput > div > div > input:focus {{
     border-color: {CYAN} !important;
-    box-shadow: 0 0 0 2px {CYAN}22 !important;
+    box-shadow: 0 0 0 3px {CYAN}20 !important;
 }}
 .stSelectbox > div > div,
 .stMultiSelect > div > div {{
     background: {SURF2} !important;
     border: 1px solid {BDR} !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
     color: {TX} !important;
 }}
 .stDateInput > div > div > input {{
     background: {SURF2} !important;
     color: {TX} !important;
     border: 1px solid {BDR} !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
 }}
 
 /* ── Sliders ── */
@@ -1100,24 +1117,40 @@ summary {{ color: {TX2} !important; }}
 [data-testid="stMarkdownContainer"] {{ overflow: visible !important; }}
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+::-webkit-scrollbar {{ width: 5px; height: 5px; }}
 ::-webkit-scrollbar-track {{ background: {BG}; }}
-::-webkit-scrollbar-thumb {{ background: {BDR2}; border-radius: 3px; }}
+::-webkit-scrollbar-thumb {{
+    background: linear-gradient({BDR2}, {CYAN}44);
+    border-radius: 3px;
+}}
 
 /* ── Cards ── */
 .scard {{
-    background: {SURF};
+    background: linear-gradient(150deg, {SURF} 0%, #0b1b2f 100%);
     border: 1px solid {BDR};
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 16px;
     height: 100%;
     direction: rtl;
-    transition: border-color .18s, box-shadow .18s, transform .15s;
+    transition: border-color .2s, box-shadow .2s, transform .18s;
+    position: relative;
+    overflow: hidden;
+}}
+.scard::after {{
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, {CYAN}22, transparent);
+    transition: opacity .2s;
+    opacity: 0;
 }}
 .scard:hover {{
     border-color: {BDR2};
-    box-shadow: 0 4px 20px rgba(0,0,0,.4);
-    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(0,0,0,.5), 0 0 0 1px {CYAN}14;
+    transform: translateY(-3px);
+}}
+.scard:hover::after {{
+    opacity: 1;
 }}
 
 /* ── Section header ── */
@@ -1126,9 +1159,17 @@ summary {{ color: {TX2} !important; }}
     font-weight: 800;
     color: {TX};
     direction: rtl;
-    padding: 4px 0 12px;
-    border-bottom: 2px solid {BDR};
+    padding: 4px 0 14px;
     margin-bottom: 18px;
+    position: relative;
+}}
+.section-head::after {{
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 56px; height: 2px;
+    background: linear-gradient(90deg, {CYAN}, {PUR});
+    border-radius: 2px;
 }}
 
 /* ── Table header ── */
@@ -1174,12 +1215,30 @@ summary {{ color: {TX2} !important; }}
 
 /* ── Summary card ── */
 .sumcard {{
-    background: {SURF};
+    background: linear-gradient(150deg, {SURF} 0%, #0b1b2f 100%);
     border: 1px solid {BDR};
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: 14px;
+    padding: 18px;
     direction: rtl;
     text-align: center;
+    transition: box-shadow .18s, transform .18s;
+}}
+.sumcard:hover {{
+    box-shadow: 0 6px 22px rgba(0,180,216,.1);
+    transform: translateY(-2px);
+}}
+
+/* ── Table header ── */
+.tbl-head {{
+    background: linear-gradient(180deg, {SURF3} 0%, #102030 100%);
+}}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {{
+    .block-container {{ padding: 0 0.6rem 80px !important; }}
+    .section-head {{ font-size: 1.15rem !important; }}
+    .scard {{ padding: 12px !important; border-radius: 12px !important; }}
+    .stButton > button {{ font-size: .8rem !important; }}
 }}
 </style>""", unsafe_allow_html=True)
 
@@ -1211,68 +1270,115 @@ def _check_alerts(watchlist: list) -> list:
 # NAVIGATION
 # ══════════════════════════════════════════════════════════════════════════════
 def _nav():
-    p = st.session_state["page"]
+    p      = st.session_state["page"]
+    mobile = st.session_state.get("mobile_mode", False)
+    _uc    = _unread_count()
 
+    # ── Header bar ────────────────────────────────────────────────────────────
+    badge_html = (f"<span style='background:{RED};color:#fff;font-size:.62rem;"
+                  f"border-radius:10px;padding:1px 6px;margin-right:4px;'>{_uc}</span>"
+                  if _uc > 0 else "")
     st.markdown(f"""<div style="
-        background:{SURF};border-bottom:1px solid {BDR};
-        padding:14px 24px 10px;margin-bottom:22px;
+        background:linear-gradient(180deg,{SURF} 0%,#08121f 100%);
+        border-bottom:1px solid {BDR};
+        padding:13px 22px 11px;margin-bottom:16px;
         display:flex;align-items:center;justify-content:space-between;direction:rtl;
+        box-shadow:0 2px 16px rgba(0,0,0,.45);
     ">
-        <div style="font-size:1.2rem;font-weight:800;color:{CYAN};letter-spacing:-.02em;">
-            📈 מנתח מניות
+        <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:1.4rem;">📈</span>
+            <div>
+                <div style="font-size:1.05rem;font-weight:900;letter-spacing:-.02em;
+                    background:linear-gradient(135deg,{CYAN},{PUR});
+                    -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                    מנתח מניות
+                </div>
+                <div style="font-size:.62rem;color:{TX3};margin-top:-1px;">
+                    {datetime.now().strftime('%d/%m/%Y · %H:%M')}
+                </div>
+            </div>
         </div>
-        <div style="font-size:.72rem;color:{TX3};">
-            {datetime.now().strftime('%d/%m/%Y · %H:%M')}
+        <div style="font-size:.72rem;color:{TX3};direction:rtl;">
+            {badge_html}{'🔔 התראות' if _uc > 0 else ''}
         </div>
     </div>""", unsafe_allow_html=True)
 
-    mob_lbl = "📱" if not st.session_state.get("mobile_mode") else "🖥️"
-    _, b1, b2, b3, b4, b5, b6, b7, b8 = st.columns([1.2, 1, 1, 1, 1, 1, 1, 1.2, 0.45])
-    with b1:
-        if st.button("🏠 ראשי", key="nb_home", use_container_width=True,
-                     type="primary" if p == "home" else "secondary"):
-            st.session_state["page"] = "home"
-            st.rerun()
-    with b2:
-        if st.button("💼 התיק שלי", key="nb_pf", use_container_width=True,
-                     type="primary" if p == "portfolio" else "secondary"):
-            st.session_state["page"] = "portfolio"
-            st.rerun()
-    with b3:
-        if st.button("👁️ מעקב", key="nb_wl", use_container_width=True,
-                     type="primary" if p == "watchlist" else "secondary"):
-            st.session_state["page"] = "watchlist"
-            st.rerun()
-    with b4:
-        if st.button("⚖️ השוואה", key="nb_cmp", use_container_width=True,
-                     type="primary" if p == "compare" else "secondary"):
-            st.session_state["page"] = "compare"
-            st.rerun()
-    with b5:
-        lbl = "🎮 דמו 🟢" if st.session_state.get("demo2_state") == "animating" else "🎮 דמו"
-        if st.button(lbl, key="nb_demo", use_container_width=True,
-                     type="primary" if p == "demo" else "secondary"):
-            st.session_state["page"] = "demo"
-            st.rerun()
-    with b6:
-        if st.button("📰 עדכוני שוק", key="nb_news", use_container_width=True,
-                     type="primary" if p == "news" else "secondary"):
-            st.session_state["page"] = "news"
-            st.rerun()
-    with b7:
-        _uc = _unread_count()
-        _ag_lbl = f"🤖 סוכנים 🔴{_uc}" if _uc > 0 else "🤖 סוכנים"
-        if st.button(_ag_lbl, key="nb_agents", use_container_width=True,
-                     type="primary" if p == "agents" else "secondary"):
-            st.session_state["page"] = "agents"
-            st.rerun()
-    with b8:
-        if st.button(mob_lbl, key="nb_mob", use_container_width=True,
-                     help="החלף למצב נייד / מחשב"):
-            st.session_state["mobile_mode"] = not st.session_state.get("mobile_mode", False)
+    if mobile:
+        # ── Mobile navigation: selectbox + toggle ─────────────────────────────
+        PAGE_MAP = {
+            "🏠  ראשי":       "home",
+            "💼  התיק שלי":   "portfolio",
+            "👁️  רשימת מעקב": "watchlist",
+            "📰  עדכוני שוק":  "news",
+            "🤖  סוכנים":     "agents",
+            "⚖️  השוואה":     "compare",
+            "🎮  דמו":        "demo",
+        }
+        labels = list(PAGE_MAP.keys())
+        current_label = next((k for k, v in PAGE_MAP.items() if v == p), labels[0])
+
+        mc1, mc2 = st.columns([5.5, 1])
+        with mc1:
+            sel = st.selectbox("ניווט", labels,
+                               index=labels.index(current_label),
+                               key="mobile_nav_sel",
+                               label_visibility="collapsed")
+        with mc2:
+            if st.button("🖥️", key="nb_mob", use_container_width=True,
+                         help="החלף למצב מחשב"):
+                st.session_state["mobile_mode"] = False
+                st.rerun()
+
+        if PAGE_MAP[sel] != p:
+            st.session_state["page"] = PAGE_MAP[sel]
             st.rerun()
 
-    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        if _uc > 0:
+            st.markdown(
+                f'<div style="background:{RED}18;border:1px solid {RED}44;'
+                f'border-radius:8px;padding:7px 14px;font-size:.78rem;color:{RED};'
+                f'direction:rtl;text-align:center;margin-bottom:6px;">'
+                f'🔔 {_uc} התראות חדשות — עבור ל-"🤖 סוכנים"</div>',
+                unsafe_allow_html=True)
+    else:
+        # ── Desktop navigation: button row ────────────────────────────────────
+        _, b1, b2, b3, b4, b5, b6, b7, b8 = st.columns([1.2, 1, 1, 1, 1, 1, 1, 1.2, 0.45])
+        with b1:
+            if st.button("🏠 ראשי", key="nb_home", use_container_width=True,
+                         type="primary" if p == "home" else "secondary"):
+                st.session_state["page"] = "home"; st.rerun()
+        with b2:
+            if st.button("💼 התיק שלי", key="nb_pf", use_container_width=True,
+                         type="primary" if p == "portfolio" else "secondary"):
+                st.session_state["page"] = "portfolio"; st.rerun()
+        with b3:
+            if st.button("👁️ מעקב", key="nb_wl", use_container_width=True,
+                         type="primary" if p == "watchlist" else "secondary"):
+                st.session_state["page"] = "watchlist"; st.rerun()
+        with b4:
+            if st.button("⚖️ השוואה", key="nb_cmp", use_container_width=True,
+                         type="primary" if p == "compare" else "secondary"):
+                st.session_state["page"] = "compare"; st.rerun()
+        with b5:
+            _dlbl = "🎮 דמו 🟢" if st.session_state.get("demo2_state") == "animating" else "🎮 דמו"
+            if st.button(_dlbl, key="nb_demo", use_container_width=True,
+                         type="primary" if p == "demo" else "secondary"):
+                st.session_state["page"] = "demo"; st.rerun()
+        with b6:
+            if st.button("📰 עדכוני שוק", key="nb_news", use_container_width=True,
+                         type="primary" if p == "news" else "secondary"):
+                st.session_state["page"] = "news"; st.rerun()
+        with b7:
+            _ag_lbl = f"🤖 סוכנים 🔴{_uc}" if _uc > 0 else "🤖 סוכנים"
+            if st.button(_ag_lbl, key="nb_agents", use_container_width=True,
+                         type="primary" if p == "agents" else "secondary"):
+                st.session_state["page"] = "agents"; st.rerun()
+        with b8:
+            if st.button("📱", key="nb_mob", use_container_width=True,
+                         help="החלף למצב נייד"):
+                st.session_state["mobile_mode"] = True; st.rerun()
+
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1918,8 +2024,12 @@ def _stock_detail(sym: str):
 def page_home():
     st_autorefresh(interval=60_000, key="home_refresh")   # every 60 s
     st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
-        <div style="font-size:1.5rem;font-weight:800;color:{TX};">🔥 מניות חמות לצפייה</div>
-        <div style="color:{TX2};font-size:.83rem;margin-top:3px;">
+        <div style="font-size:1.6rem;font-weight:900;
+            background:linear-gradient(135deg,{TX} 30%,{CYAN} 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+            🔥 מניות חמות לצפייה
+        </div>
+        <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
             ניתוח RSI ואות מסחר — מתעדכן כל דקה
         </div>
     </div>""", unsafe_allow_html=True)
@@ -2010,38 +2120,42 @@ def page_home():
             is_sel    = (selected == s["t"])
             border    = f"border:2px solid {CYAN};" if is_sel else f"border:1px solid {BDR};"
 
-            col.markdown(f"""<div class="scard" style="{border}border-top:3px solid {s['a']}40;">
+            col.markdown(f"""<div class="scard" style="{border}border-top:3px solid {s['a']};">
                 <div style="display:flex;justify-content:space-between;
-                            align-items:flex-start;margin-bottom:6px;">
-                    <div style="font-size:1.1rem;font-weight:800;color:{s['a']};">
+                            align-items:flex-start;margin-bottom:7px;">
+                    <div style="font-size:1.15rem;font-weight:900;color:{s['a']};
+                                letter-spacing:-.01em;">
                         {s['t']}
                     </div>
-                    <div style="font-size:.64rem;background:{s['a']}22;color:{s['a']};
-                                padding:2px 7px;border-radius:8px;white-space:nowrap;">
+                    <div style="font-size:.62rem;background:{s['a']}1e;color:{s['a']};
+                                padding:3px 8px;border-radius:10px;white-space:nowrap;
+                                border:1px solid {s['a']}33;">
                         {s['c']}
                     </div>
                 </div>
-                <div style="font-size:.74rem;color:{TX2};margin-bottom:10px;">
+                <div style="font-size:.73rem;color:{TX2};margin-bottom:10px;line-height:1.4;">
                     {s['n']}
                 </div>
-                <div style="font-size:1.5rem;font-weight:700;color:{TX};margin-bottom:3px;">
+                <div style="font-size:1.55rem;font-weight:800;color:{TX};
+                            margin-bottom:2px;letter-spacing:-.02em;">
                     {price_str}
                 </div>
                 <div style="display:flex;justify-content:space-between;
-                            align-items:center;margin-bottom:8px;">
-                    <span style="color:{chg_c};font-weight:600;font-size:.86rem;">
+                            align-items:center;margin-bottom:9px;">
+                    <span style="color:{chg_c};font-weight:700;font-size:.88rem;">
                         {chg_str}
                     </span>
-                    <span style="background:{sig_c}22;color:{sig_c};font-size:.72rem;
-                                 font-weight:700;padding:3px 10px;border-radius:10px;">
+                    <span style="background:{sig_c}1e;color:{sig_c};font-size:.71rem;
+                                 font-weight:700;padding:3px 10px;border-radius:12px;
+                                 border:1px solid {sig_c}33;">
                         {sig}
                     </span>
                 </div>
-                <div style="font-size:.72rem;color:{TX3};
+                <div style="font-size:.71rem;color:{TX3};
                             border-top:1px solid {BDR};padding-top:7px;margin-bottom:7px;">
-                    RSI: {rsi_str}
+                    RSI: <span style="color:{TX2};font-weight:600;">{rsi_str}</span>
                 </div>
-                <div style="font-size:.76rem;color:{TX2};line-height:1.55;margin-bottom:10px;">
+                <div style="font-size:.75rem;color:{TX2};line-height:1.55;margin-bottom:10px;">
                     {s['w']}
                 </div>
             </div>""", unsafe_allow_html=True)
