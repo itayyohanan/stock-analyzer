@@ -65,6 +65,101 @@ PF_FILE = "portfolio.json"
 WL_FILE = "watchlist.json"
 
 # ══════════════════════════════════════════════════════════════════════════════
+# AUTH SYSTEM
+# ══════════════════════════════════════════════════════════════════════════════
+def _hash_pw(pw: str) -> bytes:
+    import bcrypt
+    return bcrypt.hashpw(pw.encode(), bcrypt.gensalt())
+
+def _check_pw(pw: str, hashed: str) -> bool:
+    try:
+        import bcrypt
+        return bcrypt.checkpw(pw.encode(), hashed.encode())
+    except Exception:
+        return False
+
+def _try_login(username: str, password: str) -> bool:
+    try:
+        users = st.secrets.get("users", {})
+        if username in users:
+            return _check_pw(password, users[username]["password_hash"])
+    except Exception:
+        pass
+    return False
+
+def _show_login() -> bool:
+    """Renders login screen. Returns True when authenticated."""
+    if st.session_state.get("authenticated"):
+        return True
+
+    st.markdown(f"""<style>
+    #MainMenu,footer,header{{visibility:hidden;}}
+    .stDeployButton{{display:none;}}
+    html,body,.stApp{{background:{BG}!important;}}
+    .block-container{{padding:0!important;max-width:100%!important;}}
+    .stButton>button{{
+        background:{CYAN}22!important;border:1px solid {CYAN}!important;
+        color:{CYAN}!important;font-family:'Heebo',sans-serif!important;
+        font-size:1rem!important;font-weight:700!important;
+        border-radius:10px!important;padding:10px!important;
+    }}
+    .stTextInput>div>div>input{{
+        background:{SURF2}!important;color:{TX}!important;
+        border:1px solid {BDR}!important;border-radius:10px!important;
+        font-family:'Heebo',sans-serif!important;font-size:.95rem!important;
+        text-align:right!important;direction:rtl!important;
+    }}
+    label{{color:{TX2}!important;font-size:.82rem!important;direction:rtl!important;}}
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap"
+          rel="stylesheet">""", unsafe_allow_html=True)
+
+    _, c, _ = st.columns([1, 1.4, 1])
+    with c:
+        st.markdown(f"""
+        <div style="text-align:center;padding:70px 0 36px;direction:rtl;">
+            <div style="font-size:3.8rem;margin-bottom:10px;">📈</div>
+            <div style="font-size:2rem;font-weight:900;color:{CYAN};
+                        font-family:'Heebo',sans-serif;letter-spacing:-.02em;">
+                מנתח מניות
+            </div>
+            <div style="color:{TX2};font-size:.88rem;margin-top:6px;">
+                מערכת ניתוח מניות אישית
+            </div>
+        </div>""", unsafe_allow_html=True)
+
+        st.markdown(f"""<div style="background:{SURF};border:1px solid {BDR};
+            border-radius:16px;padding:28px 32px;direction:rtl;">
+            <div style="font-size:1rem;font-weight:700;color:{TX};
+                        margin-bottom:20px;text-align:center;">
+                🔐 כניסה למערכת
+            </div>""", unsafe_allow_html=True)
+
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input("שם משתמש", placeholder="שם משתמש")
+            password = st.text_input("סיסמה", type="password", placeholder="••••••••")
+            submitted = st.form_submit_button("כניסה  →", use_container_width=True,
+                                              type="primary")
+            if submitted:
+                if _try_login(username.strip(), password):
+                    st.session_state["authenticated"] = True
+                    st.session_state["current_user"]  = username.strip()
+                    st.session_state["user_name"] = (
+                        st.secrets.get("users", {})
+                        .get(username.strip(), {}).get("name", username.strip()))
+                    st.rerun()
+                else:
+                    st.error("שם משתמש או סיסמה שגויים ❌")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown(f"""<div style="text-align:center;color:{TX3};
+            font-size:.72rem;margin-top:16px;">
+            🔒 גישה מאובטחת · הנתונים שלך פרטיים
+        </div>""", unsafe_allow_html=True)
+
+    return False
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(

@@ -9,3 +9,4 @@ watchlist.json
 agent_state.json
 notifications.json
 agent_logs.json
+.streamlit/secrets.toml
