@@ -224,6 +224,59 @@ def fetch_news(sym: str) -> list:
     except Exception:
         return []
 
+@st.cache_data(ttl=900, show_spinner=False)
+def fetch_general_news() -> list:
+    seen, news = set(), []
+    for sym in ["SPY", "QQQ", "^GSPC", "^DJI", "GLD"]:
+        try:
+            for item in (yf.Ticker(sym).news or []):
+                t = item.get("title", "")
+                if t and t not in seen:
+                    seen.add(t)
+                    news.append(item)
+        except Exception:
+            pass
+    news.sort(key=lambda x: x.get("providerPublishTime", 0), reverse=True)
+    return news[:10]
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def translate_to_hebrew(text: str) -> str:
+    try:
+        import urllib.request, urllib.parse, json as _json
+        url = ("https://translate.googleapis.com/translate_a/single"
+               f"?client=gtx&sl=en&tl=iw&dt=t&q={urllib.parse.quote(text[:500])}")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            data = _json.loads(r.read())
+            return "".join(p[0] for p in data[0] if p[0])
+    except Exception:
+        return text
+
+def _time_ago(ts: int) -> str:
+    diff = int(time.time()) - int(ts)
+    if diff < 60:    return "עכשיו"
+    if diff < 3600:  return f"לפני {diff // 60} דקות"
+    if diff < 86400: return f"לפני {diff // 3600} שעות"
+    return f"לפני {diff // 86400} ימים"
+
+def _sentiment(title: str) -> tuple:
+    """Returns (emoji, Hebrew label, color)."""
+    t = title.lower()
+    pos = sum(1 for w in [
+        "surge","gain","rise","rally","soar","jump","climb","beat","record",
+        "growth","profit","strong","bullish","boost","high","win","exceed",
+        "positive","upgrade","outperform","top","above","better","robust",
+    ] if w in t)
+    neg = sum(1 for w in [
+        "fall","drop","decline","loss","miss","concern","risk","bear","weak",
+        "cut","crash","plunge","sink","tumble","warning","fear","down","below",
+        "layoff","fire","downgrade","underperform","recession","tariff",
+        "sanction","halt","probe","fine","penalty","inflation","slowdown",
+    ] if w in t)
+    if pos > neg: return "🟢", "חיובי", GRN
+    if neg > pos: return "🔴", "שלילי", RED
+    return "🟡", "ניטרלי", AMB
+
 # ══════════════════════════════════════════════════════════════════════════════
 # AUTONOMOUS BACKTEST SIMULATOR
 # ══════════════════════════════════════════════════════════════════════════════
@@ -683,7 +736,7 @@ def _nav():
     </div>""", unsafe_allow_html=True)
 
     mob_lbl = "📱" if not st.session_state.get("mobile_mode") else "🖥️"
-    _, b1, b2, b3, b4, b5, b6 = st.columns([1.2, 1, 1, 1, 1, 1, 0.45])
+    _, b1, b2, b3, b4, b5, b6, b7 = st.columns([1.2, 1, 1, 1, 1, 1, 1, 0.45])
     with b1:
         if st.button("🏠 ראשי", key="nb_home", use_container_width=True,
                      type="primary" if p == "home" else "secondary"):
@@ -711,6 +764,11 @@ def _nav():
             st.session_state["page"] = "demo"
             st.rerun()
     with b6:
+        if st.button("📰 עדכוני שוק", key="nb_news", use_container_width=True,
+                     type="primary" if p == "news" else "secondary"):
+            st.session_state["page"] = "news"
+            st.rerun()
+    with b7:
         if st.button(mob_lbl, key="nb_mob", use_container_width=True,
                      help="החלף למצב נייד / מחשב"):
             st.session_state["mobile_mode"] = not st.session_state.get("mobile_mode", False)
@@ -2291,6 +2349,284 @@ def page_compare():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PAGE: NEWS — עדכוני שוק
+# ══════════════════════════════════════════════════════════════════════════════
+def page_news():
+    portfolio = load_json(PF_FILE)
+    watchlist = load_json(WL_FILE)
+    pf_syms   = [h["sym"] for h in portfolio]
+    wl_syms   = watchlist if isinstance(watchlist, list) else []
+    user_syms = list(dict.fromkeys(pf_syms + wl_syms))
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    h1, h2, h3 = st.columns([4, 2, 1])
+    with h1:
+        st.markdown(f'<div class="section-head">📰 עדכוני שוק</div>',
+                    unsafe_allow_html=True)
+    with h2:
+        st.markdown(
+            f"<div style='color:{TX3};font-size:.78rem;direction:rtl;padding-top:14px;'>"
+            f"עודכן: {datetime.now().strftime('%d/%m/%Y · %H:%M')}</div>",
+            unsafe_allow_html=True)
+    with h3:
+        if st.button("🔄 רענן", key="news_refresh", use_container_width=True):
+            fetch_general_news.clear()
+            fetch_news.clear()
+            st.rerun()
+
+    # ════════════════════════════════════════════════════════════════════════
+    # SECTION 1 — General market news
+    # ════════════════════════════════════════════════════════════════════════
+    st.markdown(
+        f'<div style="font-size:1.15rem;font-weight:800;color:{TX};direction:rtl;'
+        f'padding:16px 0 12px;border-bottom:2px solid {BDR};margin-bottom:16px;">'
+        f'🌍 חדשות שוק כלליות</div>', unsafe_allow_html=True)
+
+    with st.spinner("טוען חדשות שוק..."):
+        gen_news = fetch_general_news()
+
+    if not gen_news:
+        st.markdown(f"<div style='color:{TX2};direction:rtl;'>לא נמצאו חדשות כרגע.</div>",
+                    unsafe_allow_html=True)
+    else:
+        st.markdown(
+            f"<div style='color:{TX3};font-size:.76rem;direction:rtl;margin-bottom:10px;'>"
+            f"לחץ על כותרת לקריאת סיכום</div>", unsafe_allow_html=True)
+
+        for item in gen_news:
+            title     = item.get("title", "")
+            link      = item.get("link", "#")
+            publisher = item.get("publisher", "")
+            pub_ts    = item.get("providerPublishTime", 0)
+            summary   = (item.get("summary") or item.get("description") or "")
+            if not title:
+                continue
+
+            time_str   = _time_ago(pub_ts) if pub_ts else ""
+            src_str    = f"{time_str} — {publisher}" if publisher else time_str
+            si, sl, sc = _sentiment(title)
+
+            with st.spinner(""):
+                heb_title = translate_to_hebrew(title)
+
+            with st.expander(f"{si} {heb_title}"):
+                st.markdown(
+                    f'<div style="direction:rtl;">'
+                    f'<div style="font-size:.75rem;color:{TX3};margin-bottom:8px;">{src_str}</div>'
+                    f'<span style="background:{sc}22;color:{sc};font-size:.72rem;'
+                    f'font-weight:700;padding:2px 10px;border-radius:8px;">'
+                    f'{si} {sl}</span>'
+                    + (f'<div style="font-size:.83rem;color:{TX2};line-height:1.65;'
+                       f'margin-top:10px;direction:ltr;">{summary}</div>' if summary else "")
+                    + f'<div style="margin-top:10px;">'
+                      f'<a href="{link}" target="_blank" style="color:{CYAN};font-size:.78rem;">'
+                      f'קרא את הכתבה המלאה ↗</a></div></div>',
+                    unsafe_allow_html=True)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # SECTION 2 — News for my stocks
+    # ════════════════════════════════════════════════════════════════════════
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-size:1.15rem;font-weight:800;color:{TX};direction:rtl;'
+        f'padding:16px 0 12px;border-bottom:2px solid {BDR};margin-bottom:16px;">'
+        f'📊 חדשות על המניות שלי</div>', unsafe_allow_html=True)
+
+    if not user_syms:
+        st.markdown(
+            f'<div style="background:{SURF};border:1px solid {BDR};border-radius:12px;'
+            f'padding:24px;text-align:center;direction:rtl;color:{TX2};">'
+            f'הוסף מניות לתיק או לרשימת המעקב כדי לראות חדשות רלוונטיות.</div>',
+            unsafe_allow_html=True)
+    else:
+        today_ts = int(datetime.combine(datetime.now().date(),
+                                        datetime.min.time()).timestamp())
+
+        with st.spinner("טוען חדשות למניות..."):
+            with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=min(8, len(user_syms))) as ex:
+                stock_news = dict(zip(user_syms,
+                                      ex.map(fetch_news, user_syms)))
+
+        for sym in user_syms:
+            items = stock_news.get(sym, []) or []
+            if not items:
+                continue
+
+            today_items = [it for it in items
+                           if it.get("providerPublishTime", 0) >= today_ts]
+            pos_count   = sum(1 for it in today_items
+                              if _sentiment(it.get("title", ""))[0] == "🟢")
+            neg_count   = sum(1 for it in today_items
+                              if _sentiment(it.get("title", ""))[0] == "🔴")
+            mostly_neg  = neg_count > pos_count and neg_count > 0
+
+            tag_icon  = "💼" if sym in pf_syms else "👁️"
+            tag_lbl   = "תיק" if sym in pf_syms else "מעקב"
+            tag_color = CYAN if sym in pf_syms else AMB
+            bdr_col   = RED if mostly_neg else BDR2
+
+            badge_neg = (
+                f"<span style='background:{RED}22;color:{RED};font-size:.72rem;"
+                f"font-weight:700;padding:3px 10px;border-radius:8px;'>"
+                f"⚠️ חדשות שליליות</span>" if mostly_neg else "")
+
+            counts_html = ""
+            if pos_count:
+                counts_html += (f"<span style='color:{GRN};font-weight:700;'>"
+                                f"🟢 {pos_count}</span>&nbsp;")
+            if neg_count:
+                counts_html += (f"<span style='color:{RED};font-weight:700;'>"
+                                f"🔴 {neg_count}</span>")
+            if today_items:
+                counts_html += f"&nbsp;<span style='color:{TX3};font-size:.72rem;'>היום</span>"
+
+            st.markdown(
+                f'<div style="background:{SURF};border:1px solid {bdr_col};'
+                f'border-radius:12px;padding:16px;margin-bottom:14px;direction:rtl;">'
+                f'<div style="display:flex;justify-content:space-between;'
+                f'align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">'
+                f'<div style="display:flex;align-items:center;gap:10px;">'
+                f'<span style="font-size:1.1rem;font-weight:800;color:{CYAN};">{sym}</span>'
+                f'<span style="background:{tag_color}22;color:{tag_color};font-size:.68rem;'
+                f'font-weight:700;padding:2px 8px;border-radius:6px;">'
+                f'{tag_icon} {tag_lbl}</span>{badge_neg}</div>'
+                f'<div style="font-size:.78rem;">{counts_html}</div></div>',
+                unsafe_allow_html=True)
+
+            for it in items[:4]:
+                t  = it.get("title", "")
+                lk = it.get("link", "#")
+                pb = it.get("publisher", "")
+                ts = it.get("providerPublishTime", 0)
+                if not t:
+                    continue
+                si, sl, sc = _sentiment(t)
+                time_s = _time_ago(ts) if ts else ""
+                pub_s  = f"&nbsp;·&nbsp;{pb}" if pb else ""
+                st.markdown(
+                    f'<div style="background:{SURF2};border-right:3px solid {sc};'
+                    f'border-radius:0 8px 8px 0;padding:9px 14px;margin-bottom:6px;">'
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'align-items:flex-start;gap:8px;flex-wrap:wrap;">'
+                    f'<a href="{lk}" target="_blank" style="color:{TX};font-size:.83rem;'
+                    f'font-weight:600;text-decoration:none;line-height:1.5;'
+                    f'direction:ltr;flex:1;">{t}</a>'
+                    f'<span style="background:{sc}22;color:{sc};font-size:.68rem;'
+                    f'font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;">'
+                    f'{si} {sl}</span></div>'
+                    f'<div style="font-size:.7rem;color:{TX3};margin-top:4px;">'
+                    f'{time_s}{pub_s}</div></div>',
+                    unsafe_allow_html=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # SECTION 3 — Upcoming events
+    # ════════════════════════════════════════════════════════════════════════
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-size:1.15rem;font-weight:800;color:{TX};direction:rtl;'
+        f'padding:16px 0 12px;border-bottom:2px solid {BDR};margin-bottom:16px;">'
+        f'📅 אירועים קרובים</div>', unsafe_allow_html=True)
+
+    if not user_syms:
+        st.markdown(
+            f'<div style="background:{SURF};border:1px solid {BDR};border-radius:12px;'
+            f'padding:24px;text-align:center;direction:rtl;color:{TX2};">'
+            f'הוסף מניות לתיק או לרשימת המעקב כדי לראות אירועים קרובים.</div>',
+            unsafe_allow_html=True)
+    else:
+        def _fetch_events(sym):
+            evts = []
+            # Earnings
+            cal = fetch_calendar(sym)
+            ed  = cal.get("earnings_date")
+            if ed:
+                ed_ts = pd.Timestamp(ed)
+                days  = (ed_ts - pd.Timestamp(datetime.now())).days
+                if -7 <= days <= 90:
+                    evts.append({
+                        "sym": sym, "type": "earnings",
+                        "icon": "📋", "label": "דוח רבעוני",
+                        "date": ed_ts.strftime("%d/%m/%Y"), "days": days,
+                    })
+            # Ex-dividend date
+            info   = fetch_info(sym)
+            ex_div = info.get("exDividendDate")
+            if ex_div:
+                try:
+                    ex_dt = datetime.fromtimestamp(int(ex_div))
+                    days  = (ex_dt.date() - datetime.now().date()).days
+                    if 0 <= days <= 90:
+                        evts.append({
+                            "sym": sym, "type": "dividend",
+                            "icon": "💰", "label": "תשלום דיבידנד",
+                            "date": ex_dt.strftime("%d/%m/%Y"), "days": days,
+                        })
+                except Exception:
+                    pass
+            return evts
+
+        with st.spinner("טוען אירועים קרובים..."):
+            with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=min(8, len(user_syms))) as ex:
+                all_evts = []
+                for evts in ex.map(_fetch_events, user_syms):
+                    all_evts.extend(evts)
+            all_evts.sort(key=lambda e: e["days"])
+
+        if not all_evts:
+            st.markdown(
+                f'<div style="background:{SURF};border:1px solid {BDR};border-radius:12px;'
+                f'padding:24px;text-align:center;direction:rtl;color:{TX2};">'
+                f'לא נמצאו אירועים קרובים (90 יום) למניות שלך.</div>',
+                unsafe_allow_html=True)
+        else:
+            for evt in all_evts:
+                days    = evt["days"]
+                is_warn = evt["type"] == "earnings" and 0 <= days <= 7
+                bdr_c   = RED if is_warn else (AMB if days <= 14 else BDR)
+
+                if days < 0:
+                    days_s = f"לפני {abs(days)} ימים"; days_c = TX3
+                elif days == 0:
+                    days_s = "היום!"; days_c = RED
+                elif days == 1:
+                    days_s = "מחר"; days_c = RED
+                else:
+                    days_s = f"עוד {days} ימים"
+                    days_c = AMB if days <= 7 else (CYAN if days <= 14 else TX2)
+
+                warn_str = "⚠️ " if is_warn else ""
+                tag_icon = "💼" if evt["sym"] in pf_syms else "👁️"
+
+                st.markdown(
+                    f'<div style="background:{SURF};border:1px solid {bdr_c};'
+                    f'border-radius:10px;padding:14px 18px;margin-bottom:8px;direction:rtl;'
+                    f'display:flex;justify-content:space-between;align-items:center;'
+                    f'flex-wrap:wrap;gap:8px;">'
+                    f'<div style="display:flex;align-items:center;gap:12px;">'
+                    f'<span style="font-size:1.3rem;">{evt["icon"]}</span>'
+                    f'<div>'
+                    f'<div style="font-size:.88rem;font-weight:700;color:{TX};">'
+                    f'{warn_str}{evt["sym"]} {tag_icon} — {evt["label"]}</div>'
+                    f'<div style="font-size:.75rem;color:{TX3};margin-top:2px;">'
+                    f'{evt["date"]}</div></div></div>'
+                    f'<div style="background:{days_c}22;color:{days_c};font-size:.82rem;'
+                    f'font-weight:700;padding:4px 14px;border-radius:20px;">'
+                    f'{days_s}</div></div>',
+                    unsafe_allow_html=True)
+
+    st.markdown(
+        f'<div style="text-align:center;color:{TX3};font-size:.72rem;'
+        f'margin-top:28px;direction:rtl;padding-bottom:8px;">'
+        f'🔄 הנתונים מתרעננים אוטומטית כל 15 דקות · '
+        f'לרענון מידי לחץ על 🔄 רענן</div>',
+        unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ROUTER
 # ══════════════════════════════════════════════════════════════════════════════
 _nav()
@@ -2301,6 +2637,7 @@ elif _page == "portfolio": page_portfolio()
 elif _page == "watchlist": page_watchlist()
 elif _page == "compare":   page_compare()
 elif _page == "demo":      page_demo()
+elif _page == "news":      page_news()
 
 st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
 st.caption("⚠️ אפליקציה זו מיועדת למטרות לימוד בלבד ואינה מהווה ייעוץ פיננסי.")
