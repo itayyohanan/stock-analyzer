@@ -64,6 +64,169 @@ HOT = [
 PF_FILE = "portfolio.json"
 WL_FILE = "watchlist.json"
 
+# ── Deep-scan universe: 100+ stocks with Hebrew metadata ──────────────────────
+# Fields: t=ticker, n=name, s=sector(Hebrew), d=description(Hebrew), u=why-under-radar
+DEEP_SCAN_UNIVERSE = [
+    # ── Large/Mid-cap Tech ─────────────────────────────────────────────────────
+    {"t":"MRVL", "n":"Marvell Technology", "s":"מוליכים למחצה",
+     "d":"מייצרת שבבי AI מותאמים אישית למרכזי נתונים ורשתות 5G.", "u":""},
+    {"t":"ANET", "n":"Arista Networks",    "s":"רשתות",
+     "d":"ספקית ציוד רשת ענן מתקדם לחברות הגדולות בעולם.", "u":""},
+    {"t":"DDOG", "n":"Datadog",            "s":"ענן / מוניטורינג",
+     "d":"פלטפורמת מוניטורינג לתשתיות ענן — הכרחית לכל DevOps.", "u":""},
+    {"t":"CRWD", "n":"CrowdStrike",        "s":"אבטחת סייבר",
+     "d":"מגנה על ארגונים מפני מתקפות סייבר בפלטפורמת Falcon.", "u":""},
+    {"t":"ZS",   "n":"Zscaler",            "s":"אבטחת סייבר",
+     "d":"אבטחת גישה לענן ללא VPN — מודל Zero Trust.", "u":""},
+    {"t":"NET",  "n":"Cloudflare",         "s":"אבטחת רשת",
+     "d":"מגנה ומאיצה מיליוני אתרים — תשתית האינטרנט הנסתרת.", "u":""},
+    {"t":"SNOW", "n":"Snowflake",          "s":"נתונים בענן",
+     "d":"פלטפורמת מחסן נתונים בענן — מרכז של ניתוח Big Data.", "u":""},
+    {"t":"PLTR", "n":"Palantir",           "s":"AI / ניתוח נתונים",
+     "d":"בונה תוכנות AI לממשלות וחברות ענק לקבלת החלטות.", "u":""},
+    {"t":"AXON", "n":"Axon Enterprise",    "s":"ביטחון ציבורי",
+     "d":"מייצרת מצלמות גוף, נשק חשמלי ותוכנות לכוחות ביטחון.", "u":""},
+    {"t":"AVGO", "n":"Broadcom",           "s":"מוליכים למחצה",
+     "d":"מייצרת שבבי רשת, Wi-Fi ותשתית מרכזי נתונים.", "u":""},
+    {"t":"KLAC", "n":"KLA Corporation",    "s":"ציוד מוליכים",
+     "d":"מייצרת ציוד בקרת תהליכים לייצור שבבים — מונופול בתחומה.", "u":""},
+    {"t":"LRCX", "n":"Lam Research",       "s":"ציוד מוליכים",
+     "d":"ציוד חריטה ושקיעה לייצור שבבים — שולט ב-50% מהשוק.", "u":""},
+    {"t":"SNPS", "n":"Synopsys",           "s":"תוכנת שבבים",
+     "d":"תוכנה לתכנון שבבים — כלי חיוני לכל חברת מוליכים.", "u":""},
+    {"t":"CDNS", "n":"Cadence Design",     "s":"תוכנת שבבים",
+     "d":"מתחרה ב-Synopsys בתכנון שבבים — מונופול יחד עם Synopsys.", "u":""},
+    {"t":"PAYC", "n":"Paycom Software",    "s":"HR / פינטק",
+     "d":"תוכנת ניהול שכר ומשאבי אנוש לעסקים.", "u":""},
+    {"t":"PCTY", "n":"Paylocity",          "s":"HR / פינטק",
+     "d":"פלטפורמת HR ושכר לעסקים בינוניים — צמיחה עקבית.", "u":""},
+    # ── Small/Unknown Gems ─────────────────────────────────────────────────────
+    {"t":"CEVA", "n":"CEVA Inc.",          "s":"IP שבבים",
+     "d":"מספקת ליבות IP לעיבוד אותות ו-AI בשבבים ניידים.",
+     "u":"חברה קטנה ב-3 מיליארד דולר — מסייעת לכל יצרן שבבי IoT ו-5G אך לא בכותרות."},
+    {"t":"SLAB", "n":"Silicon Labs",       "s":"IoT",
+     "d":"מייצרת שבבים חסכוניים לאינטרנט של הדברים (IoT).",
+     "u":"כ-2 מיליארד שווי שוק — IoT עדיין לא הגיע לשלב הצמיחה הגדולה."},
+    {"t":"AMBA", "n":"Ambarella",          "s":"AI Edge",
+     "d":"מייצרת שבבי AI לעיבוד וידאו — מצלמות אבטחה ורכבים אוטונומיים.",
+     "u":"מתחת לרדאר — פחות מ-4 מיליארד, אך שבביה נמצאים בכל מצלמת אבטחה חכמה."},
+    {"t":"LSCC", "n":"Lattice Semiconductor","s":"FPGA",
+     "d":"שבבי FPGA לצריכת חשמל נמוכה — מובילה בשוק ה-Edge AI.",
+     "u":"נישה של FPGA קטן לא מוכרת לרוב המשקיעים, אך הצמיחה חזקה."},
+    {"t":"ALGM", "n":"Allegro MicroSystems","s":"חיישנים",
+     "d":"חיישני מגנטיות וזרם לרכבים חשמליים ותעשייה.",
+     "u":"חברה ב-2 מיליארד שמסייעת לכל EV — המניה לא על מדורי הפיננסים."},
+    {"t":"ACLS", "n":"Axcelis Technologies","s":"ציוד מוליכים",
+     "d":"ציוד שתל יונים לייצור שבבים — ביקוש גדל עם הרחבת Fabs.",
+     "u":"מתחת 2 מיליארד שווי שוק — סגמנט נישה של ציוד שבבים שמעטים עוקבים אחריו."},
+    {"t":"ONTO", "n":"Onto Innovation",    "s":"ציוד מוליכים",
+     "d":"מערכות בקרת תהליכים ומדידה לייצור שבבים.",
+     "u":"כמיליארד וחצי שווי — מונופול קטן בבקרת תהליכי עיבוד שבבים."},
+    {"t":"FORM", "n":"FormFactor",         "s":"בדיקת שבבים",
+     "d":"מייצרת כרטיסי probe לבדיקת שבבים — הכרחי בכל fab.",
+     "u":"פחות מ-2 מיליארד — מרוויחה מכל fab expansion ב-TSMC/Intel."},
+    {"t":"SITM", "n":"SiTime Corporation", "s":"אוסצילטורים",
+     "d":"שבבי תזמון מדויקים — מחליפה קריסטלים קוורץ מסורתיים.",
+     "u":"שוק נישה של אוסצילטורים — חברה ב-2.5 מיליארד עם שליטה על 20% מהשוק הגדל."},
+    {"t":"AEHR", "n":"Aehr Test Systems",  "s":"בדיקת שבבים",
+     "d":"בודקת שבבי SiC לרכבים חשמליים — ביקוש גדל מאוד.",
+     "u":"כ-500 מיליון שווי — פנינה קטנה שנהנית ישירות מהמעבר ל-EV."},
+    {"t":"DIOD", "n":"Diodes Inc.",        "s":"רכיבים אנלוגיים",
+     "d":"מייצרת רכיבי חצי מוליך דיסקרטיים ולוגיים לתעשייה.",
+     "u":"נסחרת ב-1.8 מיליארד — שוק יציב עם ביקוש יציב, לא מסקרן מספיק לתקשורת."},
+    # ── AI / Quantum ───────────────────────────────────────────────────────────
+    {"t":"IONQ", "n":"IonQ",              "s":"מחשוב קוואנטי",
+     "d":"מפתחת מחשבים קוואנטיים מסחריים על בסיס יוני מלכודת.",
+     "u":"קוואנטום עדיין ב-hype — אך IonQ היא המובילה המסחרית. מסוכן אך פוטנציאל עצום."},
+    {"t":"RGTI", "n":"Rigetti Computing",  "s":"מחשוב קוואנטי",
+     "d":"מחשבים קוואנטיים היברידיים קלאסי-קוואנטי.",
+     "u":"מניה ספקולטיבית — ניצול חוסר ידע ציבורי על קוואנטום."},
+    {"t":"QUBT", "n":"Quantum Computing", "s":"מחשוב קוואנטי",
+     "d":"תוכנת אופטימיזציה קוואנטית לבעיות לוגיסטיקה ופיננסים.",
+     "u":"ספקולטיבי מאוד — אבל עשוי לזנק עם כל הודעת פריצת דרך קוואנטית."},
+    {"t":"SOUN", "n":"SoundHound AI",     "s":"AI קולי",
+     "d":"טכנולוגיית זיהוי קול ומסייע AI לרכבים ומסעדות.",
+     "u":"לא בכותרות — אבל NVIDIA השקיעה בה. פחות מ-3 מיליארד שווי."},
+    {"t":"BBAI", "n":"BigBear.ai",        "s":"AI ביטחוני",
+     "d":"AI לניתוח מודיעין ולוגיסטיקה לממשל האמריקאי.",
+     "u":"מניה ביטחונית קטנה שנהנית מתקציבי AI ממשלתיים — אינה נסקרת מספיק."},
+    # ── Clean Energy ───────────────────────────────────────────────────────────
+    {"t":"ENPH", "n":"Enphase Energy",    "s":"אנרגיה סולארית",
+     "d":"מהפכי מיקרו — מנהלת כל פאנל סולארי ביתי בנפרד.",
+     "u":""},
+    {"t":"SEDG", "n":"SolarEdge",         "s":"אנרגיה סולארית",
+     "d":"מהפכי חשמל לפאנלים סולאריים — מותקנת במיליוני בתים.",
+     "u":"ירדה מאוד מהשיא — מכפיל נמוך היסטורית, שאלה אם זה Bounce."},
+    {"t":"ARRY", "n":"Array Technologies","s":"עוקבי שמש",
+     "d":"מייצרת מכונות עוקבי שמש לפרויקטים סולאריים גדולים.",
+     "u":"כ-2 מיליארד — מרוויחה מביקוש עצום לסולאר מסחרי. לא בכותרות."},
+    {"t":"NOVA", "n":"Sunnova Energy",    "s":"שירותי סולאר",
+     "d":"מאפשרת לבתים להתקין סולאר ללא עלות ראשונית.",
+     "u":"ספקולטיבי — תלוי בסביבת ריבית, אבל לאחר ירידה גדולה עשוי להתאושש."},
+    {"t":"SHLS", "n":"Shoals Technologies","s":"תשתית סולאר",
+     "d":"מייצרת רכיבי תיל ומחברים לשדות סולאריים גדולים.",
+     "u":"כ-1.5 מיליארד — נישה הכרחית בבניית תשתיות סולאר שאף אחד לא מדבר עליה."},
+    {"t":"FSLR", "n":"First Solar",       "s":"פאנלים סולאריים",
+     "d":"מייצרת פאנלים סולאריים בארה\"ב — מרוויחה מ-IRA.", "u":""},
+    {"t":"RUN",  "n":"Sunrun",            "s":"שירותי סולאר",
+     "d":"מתקינה סולאר ואחסון אנרגיה לבתים פרטיים בארה\"ב.", "u":""},
+    # ── Biotech Growth ─────────────────────────────────────────────────────────
+    {"t":"RXRX", "n":"Recursion Pharma",  "s":"AI ביו-טק",
+     "d":"משתמשת ב-AI לגילוי תרופות מהר פי 10 מהמסורתי.",
+     "u":"כ-4 מיליארד — AI לביו-טק הוא הסגמנט הכי מעניין שאנשים לא מכירים."},
+    {"t":"BEAM", "n":"Beam Therapeutics", "s":"עריכת גנום",
+     "d":"עריכת גנום מדויקת (Base Editing) לריפוי מחלות גנטיות.",
+     "u":"תת-נישה של עריכת גנום — מתקדמת יותר מ-CRISPR בדיוק. שווי נמוך."},
+    {"t":"EDIT", "n":"Editas Medicine",   "s":"CRISPR",
+     "d":"עריכת גנום CRISPR לטיפול במחלות גנטיות וסרטן.", "u":""},
+    {"t":"NTLA", "n":"Intellia Therapeutics","s":"CRISPR",
+     "d":"עריכת גנום in-vivo — מרפאת מחלות גנטיות בתוך הגוף.", "u":""},
+    {"t":"PACB", "n":"Pacific Biosciences","s":"ריצוף גנום",
+     "d":"ריצוף DNA ארוך-קריאה — מדויק יותר משיטת Illumina.",
+     "u":"מתחת 700 מיליון שווי — הטכנולוגיה שלה עדיפה אך Illumina שולטת בשוק."},
+    # ── Fintech ────────────────────────────────────────────────────────────────
+    {"t":"AFRM", "n":"Affirm Holdings",   "s":"BNPL / פינטק",
+     "d":"רכישה עכשיו תשלום אחר כך (BNPL) — שותפת Amazon ו-Shopify.",
+     "u":""},
+    {"t":"UPST", "n":"Upstart Holdings",  "s":"AI אשראי",
+     "d":"AI להחלטות הלוואות — מחשבת סיכון טוב ממודלים מסורתיים.",
+     "u":"ירדה 90% מהשיא — אם הריבית תרד, עשויה לשוב לגדולה."},
+    {"t":"RELY", "n":"Remitly Global",    "s":"העברות כסף",
+     "d":"שליחת כסף בינלאומית לשווקים מתפתחים — זולה ומהירה.",
+     "u":"כ-5 מיליארד — שוק העברות כסף ב-700 מיליארד דולר, Remitly כובשת נתחים."},
+    {"t":"BILL", "n":"Bill.com",          "s":"B2B פינטק",
+     "d":"אוטומציית חשבונות לעסקים קטנים ובינוניים.",
+     "u":""},
+    {"t":"FLYW", "n":"Flywire",           "s":"פינטק גלובלי",
+     "d":"פתרונות תשלום למוסדות חינוך ובריאות ברחבי העולם.",
+     "u":"כ-2 מיליארד — נישה ייחודית של תשלומים מורכבים שאף אחד לא עוסק בה."},
+    {"t":"NCNO", "n":"nCino",             "s":"פינטק בנקאות",
+     "d":"ענן לבנקים — מייעלת הנפקת הלוואות ופתיחת חשבונות.",
+     "u":"כ-4 מיליארד — פינטק B2B לבנקים, פחות מוכרת מ-Stripe/Square."},
+    # ── Space / Defense ────────────────────────────────────────────────────────
+    {"t":"RKLB", "n":"Rocket Lab",        "s":"חלל מסחרי",
+     "d":"משגרת לוויינים קטנים — תחרות ל-SpaceX בשוק ה-small sat.",
+     "u":"כ-8 מיליארד — SpaceX פרטית, RKLB ציבורית. נהנית מביקוש עצום ללוויינים."},
+    {"t":"ASTS", "n":"AST SpaceMobile",   "s":"אינטרנט לוויני",
+     "d":"אינטרנט סלולרי ישירות ללוויין — ללא Starlink.",
+     "u":"ספקולטיבי — אבל AT&T ו-Verizon השקיעו. פוטנציאל ענק אם יצליח."},
+    {"t":"ACHR", "n":"Archer Aviation",   "s":"eVTOL / תחבורה אוויר",
+     "d":"מטוסי מונית חשמליים — סטארטאפ eVTOL בדרך לאישור FAA.",
+     "u":"ספקולטיבי מאוד — אבל United Airlines הזמינה 200 מטוסים."},
+    {"t":"JOBY", "n":"Joby Aviation",     "s":"eVTOL",
+     "d":"מונית אווירית חשמלית שקטה — אישור FAA צפוי בשנים הקרובות.",
+     "u":"ספקולטיבי — Toyota השקיעה. שוק מונית אווירית ב-2030+ הוא ענק."},
+    {"t":"LUNR", "n":"Intuitive Machines","s":"חלל / ירח",
+     "d":"החברה הפרטית הראשונה שנחתה על הירח — חוזים עם NASA.",
+     "u":"כ-2 מיליארד — תוכנית Artemis של NASA מייצרת ביקוש, כמעט לא מכוסה."},
+    {"t":"KTOS", "n":"Kratos Defense",    "s":"ביטחון / Drones",
+     "d":"מפתחת כלי טיס בלתי מאוישים וטילים לצבא האמריקאי.",
+     "u":"כ-3 מיליארד — תקציבי ביטחון גדולים, מוכרת ביחס לגודל שלה."},
+    {"t":"AVAV", "n":"AeroVironment",     "s":"Drones ביטחוניים",
+     "d":"Drones קרביים וטקטיים — מרוויחה מעלייה בביקוש מלחמתי.",
+     "u":""},
+]
+
 # ══════════════════════════════════════════════════════════════════════════════
 # AUTH SYSTEM
 # ══════════════════════════════════════════════════════════════════════════════
@@ -258,7 +421,8 @@ def _clear_notifications():
         with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
             json.dump([], f)
 
-def _add_notification(agent: str, title: str, body: str, level: str = "info", key: str = ""):
+def _add_notification(agent: str, title: str, body: str, level: str = "info",
+                      key: str = "", extra: dict | None = None):
     if key:
         cutoff = time.time() - 6 * 3600
         for n in _load_notifications():
@@ -266,7 +430,7 @@ def _add_notification(agent: str, title: str, body: str, level: str = "info", ke
                 return
     with _agent_lock:
         notifs = _load_notifications()
-        notifs.insert(0, {
+        entry = {
             "ts":    time.time(),
             "agent": agent,
             "title": title,
@@ -275,7 +439,10 @@ def _add_notification(agent: str, title: str, body: str, level: str = "info", ke
             "key":   key,
             "time":  datetime.now().strftime("%d/%m/%Y %H:%M"),
             "read":  False,
-        })
+        }
+        if extra:
+            entry.update(extra)
+        notifs.insert(0, entry)
         with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
             json.dump(notifs[:200], f, ensure_ascii=False, indent=2)
 
@@ -379,45 +546,210 @@ def _run_monitor():
                     alerts += 1
     _add_log("monitor", f"סריקה הסתיימה — {alerts} התראות חדשות")
 
-def _run_scanner():
-    extra_syms = [
-        ("AAPL","Apple"),("MSFT","Microsoft"),("GOOGL","Alphabet"),
-        ("AMZN","Amazon"),("META","Meta"),("TSLA","Tesla"),
-        ("NFLX","Netflix"),("PYPL","PayPal"),("SHOP","Shopify"),("V","Visa"),
-    ]
-    hot_set = {s["t"] for s in HOT}
-    scan_list = [{"t": s["t"], "n": s["n"]} for s in HOT] + \
-                [{"t": t, "n": n} for t, n in extra_syms if t not in hot_set]
-    _add_log("scanner", f"מתחיל סריקת הזדמנויות על {len(scan_list)} מניות")
-    opps = []
-    for stock in scan_list:
-        sym = stock["t"]
-        q = _agent_quote(sym)
-        if not q:
+def _deep_scan_stock(sym: str, meta: dict) -> dict | None:
+    """Full technical analysis for one stock. Returns signal dict or None."""
+    try:
+        hist = yf.Ticker(sym).history(period="1y", interval="1d")
+        if hist.empty or len(hist) < 60:
+            return None
+        close  = hist["Close"].dropna()
+        volume = hist["Volume"].dropna()
+        price  = float(close.iloc[-1])
+        if price <= 0:
+            return None
+
+        # ── RSI(14) ────────────────────────────────────────────────────────────
+        d  = close.diff()
+        g  = d.clip(lower=0).rolling(14).mean()
+        lo = (-d.clip(upper=0)).rolling(14).mean()
+        rsi_s = 100 - 100 / (1 + g / lo)
+        rsi   = float(rsi_s.iloc[-1])
+
+        # ── MA50 / MA200 ───────────────────────────────────────────────────────
+        ma50  = float(close.rolling(50).mean().iloc[-1])  if len(close) >= 50  else None
+        ma200 = float(close.rolling(200).mean().iloc[-1]) if len(close) >= 200 else None
+
+        # ── 52-week range ──────────────────────────────────────────────────────
+        low_52w  = float(close.tail(252).min())
+        high_52w = float(close.tail(252).max())
+
+        # ── Volume ─────────────────────────────────────────────────────────────
+        vol_avg30 = float(volume.tail(30).mean())
+        vol_today = float(volume.iloc[-1]) if not pd.isna(volume.iloc[-1]) else 0
+        vol_ratio = vol_today / vol_avg30 if vol_avg30 > 0 else 1.0
+
+        signals, score, reasons = [], 0, []
+
+        # Signal 1 — Unusual volume spike
+        if vol_ratio >= 3.0:
+            signals.append("volume_spike")
+            score += 3
+            reasons.append(f"נפח מסחר חריג פי {vol_ratio:.1f} מהממוצע")
+        elif vol_ratio >= 2.0:
+            signals.append("volume_elevated")
+            score += 2
+            reasons.append(f"נפח מסחר גבוה פי {vol_ratio:.1f} מהממוצע")
+
+        # Signal 2 — RSI recovery from extreme oversold
+        rsi_5d    = rsi_s.tail(6).values
+        min_rsi5  = float(min(rsi_5d[:-1]))
+        rsi_trend = float(rsi_s.iloc[-1]) - float(rsi_s.iloc[-6]) if len(rsi_s) >= 6 else 0
+        if min_rsi5 < 25 and rsi > min_rsi5 + 5 and rsi < 48:
+            signals.append("rsi_recovery")
+            score += 4
+            reasons.append(f"RSI מתאושש מ-{min_rsi5:.0f} ← כעת {rsi:.0f}")
+        elif rsi < 30:
+            signals.append("rsi_oversold")
+            score += 2
+            reasons.append(f"RSI במכירת יתר קיצונית ({rsi:.0f})")
+
+        # Signal 3 — Resistance breakout after consolidation
+        if len(close) >= 70:
+            resistance = float(close.iloc[-70:-5].max())
+            rng_30d    = (float(close.tail(30).max()) - float(close.tail(30).min())) / price
+            if price >= resistance * 0.97 and rng_30d < 0.18:
+                signals.append("breakout")
+                score += 3
+                reasons.append(f"פריצת התנגדות של {resistance:.2f}$ לאחר קונסולידציה")
+
+        # Signal 4 — Near 52-week low with improving momentum
+        pct_from_low = (price - low_52w) / low_52w if low_52w > 0 else 1
+        if pct_from_low < 0.15 and rsi_trend > 3 and vol_ratio > 1.2:
+            signals.append("near_52w_low")
+            score += 3
+            reasons.append(f"קרוב לשפל שנתי ({pct_from_low*100:.0f}% מעל) עם מומנטום עולה")
+
+        # Signal 5 — Quiet institutional accumulation
+        if len(close) >= 22:
+            rng_20d   = (float(close.tail(20).max()) - float(close.tail(20).min())) / price
+            vol_trend = float(volume.tail(5).mean()) / float(volume.tail(20).mean())
+            if rng_20d < 0.10 and vol_trend > 1.25 and 44 <= rsi <= 63:
+                signals.append("accumulation")
+                score += 3
+                reasons.append("צבירה מוסדית שקטה — טווח מצומצם עם עלייה בנפח")
+
+        # MA bonuses
+        if ma50  and price > ma50:  score += 1
+        if ma200 and price > ma200: score += 1
+        if ma50  and price > ma50 and rsi_trend > 0: score += 1
+
+        if score < 3 or not signals:
+            return None
+
+        # ── Confidence ────────────────────────────────────────────────────────
+        if score >= 8:
+            confidence, conf_icon, level = "גבוה",       "🔥", "warning"
+        elif score >= 5:
+            confidence, conf_icon, level = "בינוני",     "⚡", "info"
+        else:
+            confidence, conf_icon, level = "שווה מעקב", "👀", "info"
+
+        # ── Risk ──────────────────────────────────────────────────────────────
+        pct_from_high = (high_52w - price) / high_52w if high_52w > 0 else 0
+        if pct_from_high > 0.45:  risk = "גבוה"
+        elif pct_from_high > 0.22: risk = "בינוני"
+        else:                      risk = "נמוך"
+
+        return {
+            "sym":          sym,
+            "name":         meta.get("n", sym),
+            "sector":       meta.get("s", ""),
+            "desc":         meta.get("d", ""),
+            "why_unknown":  meta.get("u", ""),
+            "price":        price,
+            "rsi":          rsi,
+            "vol_ratio":    vol_ratio,
+            "score":        score,
+            "signals":      signals,
+            "primary":      reasons[0] if reasons else "",
+            "all_reasons":  " · ".join(reasons),
+            "confidence":   confidence,
+            "conf_icon":    conf_icon,
+            "risk":         risk,
+            "entry":        round(price, 2),
+            "target1":      round(price * 1.12, 2),
+            "target2":      round(price * 1.25, 2),
+            "stop":         round(price * 0.93, 2),
+            "level":        level,
+        }
+    except Exception:
+        return None
+
+
+def _run_deep_scanner():
+    """Scans 100+ stocks autonomously every 30 min."""
+    state         = _load_agent_state()
+    min_conf_pref = state.get("scanner_min_confidence", "שווה מעקב")
+    conf_rank     = {"שווה מעקב": 1, "בינוני": 2, "גבוה": 3}
+    min_rank      = conf_rank.get(min_conf_pref, 1)
+
+    universe = DEEP_SCAN_UNIVERSE.copy()
+    # Also add HOT stocks not already in universe
+    uni_tickers = {m["t"] for m in universe}
+    for s in HOT:
+        if s["t"] not in uni_tickers:
+            universe.append({"t": s["t"], "n": s["n"], "s": s["c"], "d": s["w"], "u": ""})
+
+    _add_log("scanner", f"🔍 מתחיל סריקה עמוקה של {len(universe)} מניות")
+    found = []
+
+    # Parallel batches to avoid rate-limit
+    batch_size = 10
+    for i in range(0, len(universe), batch_size):
+        batch = universe[i:i + batch_size]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=batch_size) as ex:
+            futures = {ex.submit(_deep_scan_stock, m["t"], m): m for m in batch}
+            for fut in concurrent.futures.as_completed(futures):
+                r = fut.result()
+                if r:
+                    found.append(r)
+        time.sleep(1.5)
+
+    found.sort(key=lambda x: x["score"], reverse=True)
+    _add_log("scanner", f"סריקה הסתיימה — {len(found)} מניות עם אות | שולח התראות")
+
+    notified = 0
+    date_key = datetime.now().strftime("%Y%m%d")
+    for stock in found[:12]:
+        if conf_rank.get(stock["confidence"], 1) < min_rank:
             continue
-        rsi, chg, ma50, price = q["rsi"], q["chg"], q.get("ma50"), q["price"]
-        score, reasons = 0, []
-        if rsi < 30:   score += 3; reasons.append(f"RSI={rsi:.0f} מכירת יתר")
-        elif rsi < 40: score += 2; reasons.append(f"RSI={rsi:.0f} נמוך")
-        elif rsi < 50: score += 1; reasons.append(f"RSI={rsi:.0f}")
-        if chg > 2:    score += 1; reasons.append(f"עלייה {chg:.1f}%")
-        elif chg < -2: score -= 1
-        if ma50 and price > ma50: score += 1; reasons.append("מעל MA50")
-        if score >= 2:
-            opps.append({"sym": sym, "score": score, "rsi": rsi,
-                         "chg": chg, "reasons": " · ".join(reasons)})
-    opps.sort(key=lambda x: x["score"], reverse=True)
-    top3 = opps[:3]
-    if top3:
-        k = f"scan_top3_{datetime.now().strftime('%Y%m%d_%H')}"
-        if _should_notify(k, 2):
-            body = "\n".join(f"• {o['sym']}: {o['reasons']}" for o in top3)
-            _add_notification("scanner",
-                f"🔍 הזדמנויות: {', '.join(o['sym'] for o in top3)}",
-                body, "info", k)
-    _add_log("scanner",
-             f"סריקה הסתיימה — {len(opps)} מניות עם פוטנציאל | "
-             f"top 3: {', '.join(o['sym'] for o in top3) if top3 else 'אין'}")
+        sym = stock["sym"]
+        k   = f"deep_{sym}_{date_key}"
+        if not _should_notify(k, 8):
+            continue
+
+        title = (f"{stock['conf_icon']} {sym} — {stock['primary'][:65]}")
+        body  = "\n".join(filter(None, [
+            f"🏢 {stock['desc']}" if stock.get("desc") else None,
+            f"📊 ביטחון: {stock['conf_icon']} {stock['confidence']} (ציון {stock['score']})",
+            f"⚠️ סיכון: {stock['risk']}",
+            f"🎯 כניסה: ${stock['entry']:.2f}  |  יעד 1: ${stock['target1']:.2f}  |  יעד 2: ${stock['target2']:.2f}",
+            f"🛑 סטופ הפסד: ${stock['stop']:.2f}",
+            f"🔍 {stock['why_unknown']}" if stock.get("why_unknown") else None,
+        ]))
+
+        _add_notification("scanner", title, body, stock["level"], k, extra={
+            "sym":         sym,
+            "confidence":  stock["confidence"],
+            "conf_icon":   stock["conf_icon"],
+            "risk":        stock["risk"],
+            "entry":       stock["entry"],
+            "target1":     stock["target1"],
+            "target2":     stock["target2"],
+            "stop":        stock["stop"],
+            "signals":     stock["signals"],
+            "all_reasons": stock["all_reasons"],
+            "desc":        stock.get("desc", ""),
+            "why_unknown": stock.get("why_unknown", ""),
+            "sector":      stock.get("sector", ""),
+            "vol_ratio":   round(stock.get("vol_ratio", 1), 1),
+            "rsi":         round(stock.get("rsi", 50), 1),
+            "score":       stock["score"],
+        })
+        notified += 1
+
+    if not found:
+        _add_log("scanner", "לא נמצאו אותות בסריקה זו")
 
 def _run_news_agent():
     portfolio = load_json(PF_FILE)
@@ -479,10 +811,13 @@ def _agent_loop(name: str, fn, interval_min: int):
 
 def _ensure_agents():
     """Restart any dead agent thread. Called on every page render."""
-    defs = [("monitor", _run_monitor, 30),
-            ("scanner", _run_scanner, 60),
-            ("news",    _run_news_agent, 15)]
     state = _load_agent_state()
+    scanner_interval = int(state.get("scanner_interval", 30))
+    defs = [
+        ("monitor", _run_monitor,      30),
+        ("scanner", _run_deep_scanner, scanner_interval),
+        ("news",    _run_news_agent,   15),
+    ]
     for name, fn, interval in defs:
         if not state.get(name, {}).get("enabled", True):
             continue
@@ -3297,13 +3632,17 @@ def page_news():
 # PAGE: AGENTS — מרכז סוכנים
 # ══════════════════════════════════════════════════════════════════════════════
 def page_agents():
-    st_autorefresh(interval=15_000, key="agents_refresh_auto")  # every 15 s
+    st_autorefresh(interval=15_000, key="agents_refresh_auto")
+
     AGENT_META = [
-        ("monitor", "📡", "סוכן ניטור",  "בודק ירידות, RSI ופריצות MA50 בתיק ובמעקב", 30),
-        ("scanner", "🔍", "סוכן סריקה",  "סורק 30+ מניות ומוצא הזדמנויות לפי ציון", 60),
-        ("news",    "📰", "סוכן חדשות",  "מנתח סנטימנט חדשות ומדגיל עודף שלילי", 15),
+        ("monitor", "📡", "סוכן ניטור",
+         "בודק ירידות, RSI ופריצות MA50 בתיק ובמעקב", 30),
+        ("scanner", "🔍", "סוכן סריקה AI",
+         f"סורק {len(DEEP_SCAN_UNIVERSE)}+ מניות עצמאית — מזהה נפח חריג, פריצות והתאוששות RSI", 30),
+        ("news",    "📰", "סוכן חדשות",
+         "מנתח סנטימנט חדשות ומדגיל עודף שלילי", 15),
     ]
-    AGENT_FNS = {"monitor": _run_monitor, "scanner": _run_scanner, "news": _run_news_agent}
+    AGENT_FNS   = {"monitor": _run_monitor, "scanner": _run_deep_scanner, "news": _run_news_agent}
     AGENT_ICONS = {"monitor": "📡", "scanner": "🔍", "news": "📰"}
 
     # ── Header ────────────────────────────────────────────────────────────────
@@ -3320,39 +3659,33 @@ def page_agents():
     cols  = st.columns(3, gap="medium")
 
     for col, (name, icon, label, desc, interval) in zip(cols, AGENT_META):
-        ag      = state.get(name, {"enabled": True, "status": "ממתין", "last_run": None})
-        enabled = ag.get("enabled", True)
-        status  = ag.get("status", "ממתין")
-        last_run= ag.get("last_run") or "טרם רץ"
-        t       = _agent_threads.get(name)
-        alive   = t is not None and t.is_alive()
+        ag       = state.get(name, {"enabled": True, "status": "ממתין", "last_run": None})
+        enabled  = ag.get("enabled", True)
+        status   = ag.get("status", "ממתין")
+        last_run = ag.get("last_run") or "טרם רץ"
+        alive    = (t := _agent_threads.get(name)) is not None and t.is_alive()
 
-        if not enabled:
-            si, sc = "⚫", TX3; status = "כבוי"
-        elif status == "פעיל":
-            si, sc = "🟢", GRN
-        elif status == "שגיאה":
-            si, sc = "🔴", RED
-        else:
-            si, sc = "🟡", AMB
-
+        si, sc = (("⚫", TX3) if not enabled else
+                  ("🟢", GRN) if status == "פעיל" else
+                  ("🔴", RED) if status == "שגיאה" else ("🟡", AMB))
+        if not enabled: status = "כבוי"
         bdr = CYAN if (enabled and alive) else BDR
 
         with col:
             st.markdown(
-                f'<div style="background:{SURF};border:1px solid {bdr};'
-                f'border-top:3px solid {sc};border-radius:12px;padding:18px;'
-                f'direction:rtl;">'
+                f'<div style="background:linear-gradient(160deg,{SURF},#0b1b2f);'
+                f'border:1px solid {bdr};border-top:3px solid {sc};'
+                f'border-radius:14px;padding:18px;direction:rtl;">'
                 f'<div style="display:flex;justify-content:space-between;'
                 f'align-items:center;margin-bottom:8px;">'
-                f'<div style="font-size:1rem;font-weight:800;color:{TX};">'
-                f'{icon} {label}</div>'
-                f'<div style="font-size:.8rem;font-weight:700;color:{sc};">'
-                f'{si} {status}</div></div>'
-                f'<div style="font-size:.76rem;color:{TX2};margin-bottom:12px;">{desc}</div>'
-                f'<div style="font-size:.72rem;color:{TX3};margin-bottom:3px;">'
+                f'<div style="font-size:1rem;font-weight:800;color:{TX};">{icon} {label}</div>'
+                f'<div style="font-size:.78rem;font-weight:700;color:{sc};">{si} {status}</div>'
+                f'</div>'
+                f'<div style="font-size:.75rem;color:{TX2};margin-bottom:12px;line-height:1.5;">'
+                f'{desc}</div>'
+                f'<div style="font-size:.71rem;color:{TX3};margin-bottom:2px;">'
                 f'🕐 ריצה אחרונה: {last_run}</div>'
-                f'<div style="font-size:.72rem;color:{TX3};">'
+                f'<div style="font-size:.71rem;color:{TX3};">'
                 f'⏱️ תדירות: כל {interval} דקות</div></div>',
                 unsafe_allow_html=True)
 
@@ -3360,15 +3693,12 @@ def page_agents():
             with bc1:
                 tog_lbl = "⏸ השבת" if enabled else "▶ הפעל"
                 if st.button(tog_lbl, key=f"ag_tog_{name}", use_container_width=True):
-                    state[name] = ag
-                    state[name]["enabled"] = not enabled
-                    state[name]["status"]  = "ממתין" if not enabled else "כבוי"
-                    _save_agent_state(state)
-                    _ensure_agents()
-                    st.rerun()
+                    ag["enabled"] = not enabled
+                    ag["status"]  = "ממתין" if not enabled else "כבוי"
+                    state[name]   = ag
+                    _save_agent_state(state); _ensure_agents(); st.rerun()
             with bc2:
-                if st.button("▶ הרץ עכשיו", key=f"ag_run_{name}",
-                             use_container_width=True):
+                if st.button("▶ הרץ עכשיו", key=f"ag_run_{name}", use_container_width=True):
                     with st.spinner(f"מריץ {label}..."):
                         try:
                             AGENT_FNS[name]()
@@ -3383,18 +3713,49 @@ def page_agents():
                             _add_log(name, f"שגיאה ידנית: {str(exc)[:100]}")
                     st.rerun()
 
-    # ── Notification centre ───────────────────────────────────────────────────
-    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+    # ── Scanner settings panel ────────────────────────────────────────────────
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    with st.expander("⚙️ הגדרות סוכן הסריקה AI"):
+        state = _load_agent_state()
+        sc1, sc2, sc3 = st.columns(3)
+        with sc1:
+            freq_opts   = {"כל 30 דקות": 30, "כל שעה": 60, "כל 3 שעות": 180}
+            cur_freq    = state.get("scanner_interval", 30)
+            cur_lbl     = next((k for k, v in freq_opts.items() if v == cur_freq), "כל 30 דקות")
+            freq_sel    = st.selectbox("תדירות סריקה", list(freq_opts.keys()),
+                                       index=list(freq_opts.keys()).index(cur_lbl),
+                                       key="scanner_freq_sel")
+        with sc2:
+            conf_opts   = ["שווה מעקב", "בינוני", "גבוה"]
+            cur_conf    = state.get("scanner_min_confidence", "שווה מעקב")
+            conf_sel    = st.selectbox("רמת ביטחון מינימלית להתראה", conf_opts,
+                                       index=conf_opts.index(cur_conf)
+                                       if cur_conf in conf_opts else 0,
+                                       key="scanner_conf_sel")
+        with sc3:
+            st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
+            if st.button("💾 שמור הגדרות", key="scanner_save", use_container_width=True):
+                state["scanner_interval"]         = freq_opts[freq_sel]
+                state["scanner_min_confidence"]   = conf_sel
+                _save_agent_state(state)
+                st.success("✅ הגדרות נשמרו")
+        st.markdown(
+            f'<div style="font-size:.74rem;color:{TX3};direction:rtl;margin-top:8px;">'
+            f'הסוכן סורק {len(DEEP_SCAN_UNIVERSE)}+ מניות כולל small-cap ומניות לא מוכרות · '
+            f'מחפש: נפח חריג, RSI מתאושש, פריצות התנגדות, צבירה מוסדית שקטה, קרוב לשפל שנתי</div>',
+            unsafe_allow_html=True)
 
-    nc1, nc2, nc3 = st.columns([4, 1.4, 1.2])
+    # ── Notification centre ───────────────────────────────────────────────────
+    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+
+    uc = _unread_count()
+    nc1, nc2, nc3 = st.columns([4, 1.5, 1.3])
     with nc1:
-        uc = _unread_count()
-        badge = (f"&nbsp;<span style='background:{RED};color:#fff;font-size:.7rem;"
+        badge = (f"&nbsp;<span style='background:{RED};color:#fff;font-size:.68rem;"
                  f"border-radius:10px;padding:1px 7px;'>{uc}</span>") if uc > 0 else ""
         st.markdown(
-            f'<div style="font-size:1.1rem;font-weight:800;color:{TX};direction:rtl;'
-            f'padding-bottom:10px;border-bottom:2px solid {BDR};margin-bottom:14px;">'
-            f'🔔 מרכז התראות{badge}</div>', unsafe_allow_html=True)
+            f'<div class="section-head" style="font-size:1.1rem;">🔔 מרכז התראות{badge}</div>',
+            unsafe_allow_html=True)
     with nc2:
         if st.button("✓ סמן הכל כנקרא", key="notif_read", use_container_width=True):
             _mark_all_read(); st.rerun()
@@ -3402,43 +3763,170 @@ def page_agents():
         if st.button("🗑️ נקה הכל", key="notif_clear", use_container_width=True):
             _clear_notifications(); st.rerun()
 
-    FILTER_OPTS = ["הכל", "📡 ניטור", "🔍 סריקה", "📰 חדשות"]
-    FILTER_MAP  = {"📡 ניטור": "monitor", "🔍 סריקה": "scanner", "📰 חדשות": "news"}
+    # Filter row
+    FILTER_OPTS = ["הכל", "🔥 חמות מאוד", "⚡ בינוני", "👀 שוות מעקב",
+                   "📡 ניטור", "📰 חדשות"]
     fsel  = st.radio("סנן:", FILTER_OPTS, horizontal=True, key="notif_filter")
     notifs = _load_notifications()
-    if fsel != "הכל":
-        notifs = [n for n in notifs if n.get("agent") == FILTER_MAP.get(fsel)]
+
+    if fsel == "🔥 חמות מאוד":
+        notifs = [n for n in notifs if n.get("confidence") == "גבוה"]
+    elif fsel == "⚡ בינוני":
+        notifs = [n for n in notifs if n.get("confidence") == "בינוני"]
+    elif fsel == "👀 שוות מעקב":
+        notifs = [n for n in notifs if n.get("confidence") == "שווה מעקב"]
+    elif fsel == "📡 ניטור":
+        notifs = [n for n in notifs if n.get("agent") == "monitor"]
+    elif fsel == "📰 חדשות":
+        notifs = [n for n in notifs if n.get("agent") == "news"]
 
     if not notifs:
         st.markdown(
-            f'<div style="text-align:center;padding:48px;color:{TX2};direction:rtl;">'
-            f'אין התראות כרגע 🎉</div>', unsafe_allow_html=True)
+            f'<div style="text-align:center;padding:48px 24px;color:{TX2};direction:rtl;">'
+            f'<div style="font-size:2rem;margin-bottom:10px;">🎉</div>'
+            f'<div>אין התראות כרגע</div>'
+            f'<div style="font-size:.78rem;color:{TX3};margin-top:6px;">'
+            f'הסוכן סורק אוטומטית כל 30 דקות</div></div>',
+            unsafe_allow_html=True)
     else:
-        for n in notifs[:60]:
-            level = n.get("level","info")
-            lc    = RED if level == "danger" else AMB if level == "warning" else CYAN
-            dot   = (f"<span style='color:{CYAN};'>●&nbsp;</span>"
-                     if not n.get("read") else "")
-            ag_ic = AGENT_ICONS.get(n.get("agent",""), "🤖")
-            body  = n.get("body","")
-            body_html = ""
-            if body:
-                for line in body.split("\n"):
-                    if line.strip():
-                        body_html += (f'<div style="font-size:.78rem;color:{TX2};'
-                                      f'line-height:1.6;">{line}</div>')
-            st.markdown(
-                f'<div style="background:{SURF};border:1px solid {BDR};'
-                f'border-right:4px solid {lc};border-radius:0 10px 10px 0;'
-                f'padding:12px 16px;margin-bottom:8px;direction:rtl;">'
-                f'<div style="display:flex;justify-content:space-between;'
-                f'align-items:flex-start;margin-bottom:4px;">'
-                f'<div style="font-size:.86rem;font-weight:700;color:{TX};">'
-                f'{dot}{ag_ic} {n.get("title","")}</div>'
-                f'<div style="font-size:.7rem;color:{TX3};white-space:nowrap;'
-                f'margin-right:8px;">{n.get("time","")}</div></div>'
-                f'{body_html}</div>',
-                unsafe_allow_html=True)
+        for n in notifs[:80]:
+            is_scanner  = n.get("agent") == "scanner" and n.get("confidence")
+            level       = n.get("level", "info")
+            lc          = RED if level == "danger" else AMB if level == "warning" else CYAN
+            dot         = f"<span style='color:{CYAN};font-size:.9rem;'>●&nbsp;</span>" if not n.get("read") else ""
+            ag_ic       = AGENT_ICONS.get(n.get("agent", ""), "🤖")
+
+            if is_scanner:
+                # Rich scanner notification card
+                conf        = n.get("confidence", "")
+                conf_icon   = n.get("conf_icon", "")
+                risk        = n.get("risk", "")
+                sym         = n.get("sym", "")
+                entry       = n.get("entry")
+                target1     = n.get("target1")
+                target2     = n.get("target2")
+                stop        = n.get("stop")
+                desc        = n.get("desc", "")
+                why_u       = n.get("why_unknown", "")
+                all_reasons = n.get("all_reasons", "")
+                vol_ratio   = n.get("vol_ratio", 0)
+                rsi_val     = n.get("rsi", 0)
+                score       = n.get("score", 0)
+
+                conf_c      = (GRN if conf == "גבוה" else
+                               AMB if conf == "בינוני" else CYAN)
+                risk_c      = (RED if risk == "גבוה" else
+                               AMB if risk == "בינוני" else GRN)
+
+                targets_html = ""
+                if entry:
+                    targets_html = (
+                        f'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
+                        f'<span style="background:{CYAN}18;color:{CYAN};border:1px solid {CYAN}33;'
+                        f'border-radius:8px;padding:4px 10px;font-size:.72rem;font-weight:700;">'
+                        f'כניסה: ${entry:.2f}</span>'
+                        f'<span style="background:{GRN}18;color:{GRN};border:1px solid {GRN}33;'
+                        f'border-radius:8px;padding:4px 10px;font-size:.72rem;font-weight:700;">'
+                        f'יעד 1: ${target1:.2f}</span>'
+                        f'<span style="background:{GRN}18;color:{GRN};border:1px solid {GRN}33;'
+                        f'border-radius:8px;padding:4px 10px;font-size:.72rem;font-weight:700;">'
+                        f'יעד 2: ${target2:.2f}</span>'
+                        f'<span style="background:{RED}18;color:{RED};border:1px solid {RED}33;'
+                        f'border-radius:8px;padding:4px 10px;font-size:.72rem;font-weight:700;">'
+                        f'סטופ: ${stop:.2f}</span>'
+                        f'</div>'
+                    )
+
+                why_html = ""
+                if why_u:
+                    why_html = (
+                        f'<div style="background:{PUR}10;border:1px solid {PUR}33;'
+                        f'border-radius:8px;padding:8px 12px;margin-top:8px;direction:rtl;">'
+                        f'<span style="font-size:.71rem;font-weight:700;color:{PUR};">'
+                        f'🔍 למה לא מוכרת?</span>'
+                        f'<div style="font-size:.72rem;color:{TX2};margin-top:3px;line-height:1.5;">'
+                        f'{why_u}</div></div>'
+                    )
+
+                reasons_html = ""
+                if all_reasons:
+                    parts = all_reasons.split(" · ")
+                    reasons_html = (
+                        f'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'
+                        + "".join(
+                            f'<span style="background:{SURF2};border:1px solid {BDR};'
+                            f'color:{TX2};border-radius:6px;padding:3px 8px;font-size:.7rem;">'
+                            f'{p}</span>'
+                            for p in parts if p
+                        )
+                        + '</div>'
+                    )
+
+                st.markdown(
+                    f'<div style="background:linear-gradient(160deg,{SURF},#0b1b2f);'
+                    f'border:1px solid {lc}55;border-right:4px solid {lc};'
+                    f'border-radius:0 14px 14px 0;padding:16px 18px;'
+                    f'margin-bottom:12px;direction:rtl;">'
+
+                    # Header row
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'align-items:flex-start;margin-bottom:8px;">'
+                    f'<div style="font-size:.9rem;font-weight:800;color:{TX};">'
+                    f'{dot}🔍 {n.get("title","")}</div>'
+                    f'<div style="font-size:.68rem;color:{TX3};white-space:nowrap;'
+                    f'margin-right:8px;">{n.get("time","")}</div></div>'
+
+                    # Badges
+                    f'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">'
+                    f'<span style="background:{conf_c}18;color:{conf_c};border:1px solid {conf_c}33;'
+                    f'border-radius:12px;padding:3px 10px;font-size:.72rem;font-weight:700;">'
+                    f'{conf_icon} ביטחון: {conf}</span>'
+                    f'<span style="background:{risk_c}18;color:{risk_c};border:1px solid {risk_c}33;'
+                    f'border-radius:12px;padding:3px 10px;font-size:.72rem;font-weight:700;">'
+                    f'⚠️ סיכון: {risk}</span>'
+                    + (f'<span style="background:{SURF2};color:{TX2};border:1px solid {BDR};'
+                       f'border-radius:12px;padding:3px 10px;font-size:.71rem;">'
+                       f'RSI {rsi_val:.0f} · נפח x{vol_ratio:.1f} · ציון {score}</span>'
+                       if rsi_val else '')
+                    + f'</div>'
+
+                    # Company desc
+                    + (f'<div style="font-size:.78rem;color:{TX2};margin-bottom:6px;'
+                       f'line-height:1.5;">{desc}</div>' if desc else '')
+
+                    # Reasons
+                    + reasons_html + targets_html + why_html
+
+                    + '</div>',
+                    unsafe_allow_html=True)
+
+                # "Analyze in depth" button
+                if sym:
+                    if st.button(f"🔬 נתח {sym} לעומק",
+                                 key=f"notif_deep_{n.get('key','')[:20]}",
+                                 type="primary"):
+                        st.session_state["search_ticker"] = sym
+                        st.session_state["page"] = "home"
+                        st.rerun()
+            else:
+                # Standard notification card (monitor / news)
+                body      = n.get("body", "")
+                body_html = "".join(
+                    f'<div style="font-size:.78rem;color:{TX2};line-height:1.6;">{line}</div>'
+                    for line in body.split("\n") if line.strip()
+                )
+                st.markdown(
+                    f'<div style="background:{SURF};border:1px solid {BDR};'
+                    f'border-right:4px solid {lc};border-radius:0 10px 10px 0;'
+                    f'padding:12px 16px;margin-bottom:8px;direction:rtl;">'
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'align-items:flex-start;margin-bottom:4px;">'
+                    f'<div style="font-size:.86rem;font-weight:700;color:{TX};">'
+                    f'{dot}{ag_ic} {n.get("title","")}</div>'
+                    f'<div style="font-size:.7rem;color:{TX3};white-space:nowrap;'
+                    f'margin-right:8px;">{n.get("time","")}</div></div>'
+                    f'{body_html}</div>',
+                    unsafe_allow_html=True)
 
     # ── Activity log ──────────────────────────────────────────────────────────
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
@@ -3452,8 +3940,8 @@ def page_agents():
             st.markdown(f"<div style='color:{TX2};direction:rtl;'>אין לוג עדיין.</div>",
                         unsafe_allow_html=True)
         else:
-            for log in logs[:60]:
-                ic = AGENT_ICONS.get(log.get("agent",""), "🤖")
+            for log in logs[:80]:
+                ic = AGENT_ICONS.get(log.get("agent", ""), "🤖")
                 st.markdown(
                     f'<div style="font-size:.78rem;direction:rtl;padding:4px 0;'
                     f'border-bottom:1px solid {BDR}44;">'
