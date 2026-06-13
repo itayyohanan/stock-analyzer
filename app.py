@@ -4160,7 +4160,7 @@ def page_learn():
         f'<p style="color:{TX2};direction:rtl;text-align:right;margin-bottom:18px;">מדריך מקיף לשוק ההון — מושגים, אסטרטגיות וטיפים מעשיים</p>',
         unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["📖 מילון מונחים", "🟢 אסטרטגיות קנייה", "🔴 אסטרטגיות מכירה"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📖 מילון מונחים", "🟢 אסטרטגיות קנייה", "🔴 אסטרטגיות מכירה", "🧮 חישובון RSI"])
 
     # ── shared card style ────────────────────────────────────────────────────
     def _term_card(term_he, term_en, body, example="", color=CYAN):
@@ -4481,6 +4481,221 @@ def page_learn():
             f'<li><strong>רגשות הם האויב</strong> — Stop Loss אוטומטי עוזר.</li>'
             f'</ol></div>',
             unsafe_allow_html=True)
+
+    # ── TAB 4: RSI CALCULATOR ───────────────────────────────────────────────
+    with tab4:
+        st.markdown(
+            f'<p style="color:{TX2};direction:rtl;text-align:right;font-size:.9rem;margin-bottom:16px;">'
+            f'הכנס סמל מניה או מחירי סגירה ידניים — קבל ניתוח RSI מיידי.</p>',
+            unsafe_allow_html=True)
+
+        def _rsi_from_series(closes, period=14):
+            """Simple rolling RSI — same formula used throughout the app."""
+            s = pd.Series(closes, dtype=float)
+            d = s.diff()
+            g  = d.clip(lower=0).rolling(period).mean()
+            lo = (-d.clip(upper=0)).rolling(period).mean()
+            rsi_series = 100 - 100 / (1 + g / lo)
+            return rsi_series
+
+        def _rsi_gauge_html(rsi_val):
+            pct = max(0, min(100, rsi_val))
+            if pct < 30:
+                val_color = GRN
+            elif pct < 70:
+                val_color = AMB
+            else:
+                val_color = RED
+            return (
+                f'<div style="position:relative;height:28px;border-radius:14px;overflow:visible;'
+                f'background:linear-gradient(to right,{GRN}88 0% 30%,{AMB}88 30% 70%,{RED}88 70% 100%);">'
+                f'<div style="position:absolute;left:{pct}%;top:-5px;transform:translateX(-50%);'
+                f'width:6px;height:38px;background:{val_color};border-radius:3px;'
+                f'box-shadow:0 0 10px {val_color};"></div></div>'
+                f'<div style="display:flex;justify-content:space-between;color:{TX3};font-size:.75rem;margin-top:4px;">'
+                f'<span>0</span><span style="color:{GRN};">מכירת יתר 30</span>'
+                f'<span style="color:{AMB};">ניטרלי</span>'
+                f'<span style="color:{RED};">קניית יתר 70</span><span>100</span></div>'
+            )
+
+        def _rsi_interpretation(rsi_val):
+            if rsi_val < 20:
+                return (RED, "מכירת יתר קיצונית",
+                        "RSI מתחת ל-20 הוא נדיר מאוד ומסמן פאניקה בשוק. היסטורית, אלה הן נקודות הכניסה הטובות ביותר לטווח הארוך — אם הפונדמנטלים של החברה תקינים.",
+                        "🟢 קנייה חזקה / הצטברות")
+            elif rsi_val < 30:
+                return (GRN, "מכירת יתר",
+                        "המניה נמכרה יתר על המידה. לרוב מצב זה מקדים התאוששות. בדוק שאין סיבה פונדמנטלית לירידה (דוח רע, תחרות) לפני כניסה.",
+                        "🟢 קנייה / שקול כניסה")
+            elif rsi_val < 45:
+                return (TX2, "ניטרלי — נטייה שלילית",
+                        "RSI באזור זה מראה חולשה מסוימת אך לא מכירת יתר. המניה יכולה להמשיך לרדת. המתן לאיתות חזק יותר.",
+                        "🟡 המתן — אין אות ברור")
+            elif rsi_val < 55:
+                return (TX2, "ניטרלי",
+                        "אזור הניטרלי הטהור. השוק לא נותן אות ברור לכאן או לכאן. בדוק גורמים נוספים כמו MA, נפח ופונדמנטלים.",
+                        "🟡 ניטרלי — אין אות")
+            elif rsi_val < 70:
+                return (AMB, "ניטרלי — נטייה חיובית",
+                        "המניה מראה כוח ומומנטום חיובי. אם אתה בפוזיציה, זה הזמן לשקול Trailing Stop. אם עדיין לא נכנסת, חכה לפולבק.",
+                        "🟡 החזק — שקול Trailing Stop")
+            elif rsi_val < 80:
+                return (RED, "קניית יתר",
+                        "המניה נסחרת גבוה מדי בטווח הקצר. שקול מכירה חלקית (Scaling Out) או הידוק ה-Stop Loss. מניות חזקות עלולות להישאר כאן זמן מה.",
+                        "🔴 מכירה חלקית / הידק Stop Loss")
+            else:
+                return (RED, "קניית יתר קיצונית",
+                        "RSI מעל 80 הוא אות מכירה חזק. מצב זה בד\"כ מקדים תיקון. אם יש לך רווח יפה — מכור לפחות חצי מהפוזיציה.",
+                        "🔴 מכירה / הפחתת פוזיציה")
+
+        mode = st.radio("מצב קלט", ["🔍 לפי סמל מניה", "✏️ מחירים ידניים"],
+                        horizontal=True, key="rsi_mode")
+
+        if mode == "🔍 לפי סמל מניה":
+            c1, c2, c3 = st.columns([3, 1, 1])
+            with c1:
+                ticker_in = st.text_input("סמל מניה", placeholder="AAPL / NVDA / TSLA ...",
+                                          key="rsi_ticker_in")
+            with c2:
+                rsi_period = st.number_input("תקופת RSI", min_value=5, max_value=30,
+                                             value=14, key="rsi_period_auto")
+            with c3:
+                st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                calc_auto = st.button("🧮 חשב", type="primary", key="rsi_btn_auto",
+                                      use_container_width=True)
+
+            if calc_auto and ticker_in.strip():
+                sym = ticker_in.strip().upper()
+                with st.spinner(f"מוריד נתונים עבור {sym}..."):
+                    try:
+                        df = fetch_history(sym, "3mo")
+                        if df is None or len(df) < rsi_period + 5:
+                            st.error(f"לא נמצאו מספיק נתונים עבור {sym}")
+                        else:
+                            rsi_s = _rsi_from_series(df["Close"].tolist(), rsi_period)
+                            last_rsi = float(rsi_s.dropna().iloc[-1])
+                            rsi_hist = rsi_s.dropna().iloc[-14:].tolist()
+                            closes   = df["Close"].iloc[-15:].tolist()
+                            cur_price = float(df["Close"].iloc[-1])
+                            prev_price = float(df["Close"].iloc[-2])
+                            chg_pct = (cur_price - prev_price) / prev_price * 100
+                            st.session_state["rsi_result"] = {
+                                "sym": sym, "rsi": last_rsi, "period": rsi_period,
+                                "rsi_hist": rsi_hist, "closes": closes,
+                                "cur_price": cur_price, "chg_pct": chg_pct,
+                                "mode": "auto",
+                            }
+                    except Exception as e:
+                        st.error(f"שגיאה: {e}")
+
+        else:
+            st.markdown(
+                f'<p style="color:{TX3};font-size:.82rem;direction:rtl;margin-bottom:6px;">'
+                f'הכנס לפחות {14+5} מחירי סגירה יומיים, מופרדים בפסיקים (מהישן לחדש).</p>',
+                unsafe_allow_html=True)
+            prices_in = st.text_area("מחירי סגירה (מהישן לחדש)",
+                                     placeholder="100.5, 101.2, 99.8, 102.1, ...",
+                                     height=100, key="rsi_prices_in")
+            c1, c2 = st.columns([1, 3])
+            with c1:
+                rsi_period = st.number_input("תקופת RSI", min_value=5, max_value=30,
+                                             value=14, key="rsi_period_man")
+            with c2:
+                st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                calc_man = st.button("🧮 חשב RSI", type="primary", key="rsi_btn_man")
+            if calc_man and prices_in.strip():
+                try:
+                    closes = [float(x.strip()) for x in prices_in.replace("\n", ",").split(",")
+                              if x.strip()]
+                    if len(closes) < rsi_period + 5:
+                        st.error(f"דרוש לפחות {rsi_period + 5} מחירים (יש {len(closes)})")
+                    else:
+                        rsi_s    = _rsi_from_series(closes, rsi_period)
+                        last_rsi = float(rsi_s.dropna().iloc[-1])
+                        rsi_hist = rsi_s.dropna().iloc[-14:].tolist()
+                        st.session_state["rsi_result"] = {
+                            "sym": "ידני", "rsi": last_rsi, "period": rsi_period,
+                            "rsi_hist": rsi_hist, "closes": closes[-15:],
+                            "cur_price": closes[-1], "chg_pct": (closes[-1] - closes[-2]) / closes[-2] * 100,
+                            "mode": "manual",
+                        }
+                except ValueError:
+                    st.error("פורמט שגוי — הכנס מחירים מספריים מופרדים בפסיקים בלבד.")
+
+        # ── Results display ─────────────────────────────────────────────────
+        res = st.session_state.get("rsi_result")
+        if res:
+            rsi_val   = res["rsi"]
+            col, zone_label, interp_text, action = _rsi_interpretation(rsi_val)
+
+            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+            # Big RSI number + zone badge
+            _price_arrow = "▲" if res["chg_pct"] >= 0 else "▼"
+            _price_color = GRN if res["chg_pct"] >= 0 else RED
+            _price_html = (
+                f'<div style="font-size:.88rem;color:{_price_color};">'
+                f'{_price_arrow} ${res["cur_price"]:.2f} ({res["chg_pct"]:+.2f}%)</div>'
+                if res["mode"] == "auto" else ""
+            )
+            st.markdown(
+                f'<div style="background:{SURF2};border:1px solid {col}55;border-radius:16px;'
+                f'padding:20px 24px;direction:rtl;text-align:right;">'
+                f'<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;">'
+                f'<div style="font-size:3.2rem;font-weight:800;color:{col};line-height:1;">'
+                f'{rsi_val:.1f}</div>'
+                f'<div>'
+                f'<div style="font-size:1.1rem;font-weight:700;color:{col};">{zone_label}</div>'
+                f'<div style="font-size:.82rem;color:{TX2};">RSI({res["period"]}) · {res["sym"]}</div>'
+                f'{_price_html}'
+                f'</div>'
+                f'<div style="margin-right:auto;background:{col}22;border:1px solid {col}55;'
+                f'border-radius:8px;padding:6px 14px;font-size:.85rem;color:{col};font-weight:600;">'
+                f'{action}</div>'
+                f'</div>'
+                + _rsi_gauge_html(rsi_val) +
+                f'<div style="margin-top:16px;color:{TX};font-size:.88rem;line-height:1.6;">{interp_text}</div>'
+                f'</div>',
+                unsafe_allow_html=True)
+
+            # RSI trend over last sessions
+            if len(res["rsi_hist"]) >= 3:
+                st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="color:{TX2};font-size:.82rem;font-weight:600;direction:rtl;'
+                    f'text-align:right;margin-bottom:6px;">📊 RSI — 14 ימים אחרונים</div>',
+                    unsafe_allow_html=True)
+                cols_rsi = st.columns(len(res["rsi_hist"]))
+                for i, rv in enumerate(res["rsi_hist"]):
+                    if rv < 30:
+                        rc = GRN
+                    elif rv < 70:
+                        rc = AMB
+                    else:
+                        rc = RED
+                    is_last = (i == len(res["rsi_hist"]) - 1)
+                    with cols_rsi[i]:
+                        st.markdown(
+                            f'<div style="text-align:center;background:{"" + rc + "22" if is_last else SURF3};'
+                            f'border:1px solid {rc if is_last else BDR};border-radius:8px;padding:4px 2px;">'
+                            f'<div style="font-size:{"1rem" if is_last else ".78rem"};font-weight:{"700" if is_last else "400"};color:{rc};">'
+                            f'{rv:.0f}</div>'
+                            f'<div style="font-size:.65rem;color:{TX3};">-{len(res["rsi_hist"])-1-i}d</div>'
+                            f'</div>',
+                            unsafe_allow_html=True)
+
+            # Explanation of RSI
+            with st.expander("❓ איך RSI מחושב?"):
+                st.markdown(
+                    f'<div style="direction:rtl;text-align:right;color:{TX};font-size:.88rem;line-height:1.7;">'
+                    f'<strong style="color:{CYAN};">RSI = 100 − (100 ÷ (1 + RS))</strong><br><br>'
+                    f'כאשר RS = ממוצע עליות {res["period"]} ימים ÷ ממוצע ירידות {res["period"]} ימים<br><br>'
+                    f'<strong>דוגמה:</strong> אם ב-14 ימים הייתה עלייה ממוצעת של $0.80 וירידה ממוצעת של $0.40:<br>'
+                    f'RS = 0.80 ÷ 0.40 = 2 → RSI = 100 − (100 ÷ 3) = <strong>66.7</strong><br><br>'
+                    f'<strong style="color:{GRN};">RSI &lt; 30</strong> = מניה נמכרה יתר — הקונים חוזרים בד"כ<br>'
+                    f'<strong style="color:{AMB};">RSI 30–70</strong> = אזור נורמלי — אין אות חד-משמעי<br>'
+                    f'<strong style="color:{RED};">RSI &gt; 70</strong> = מניה נקנתה יתר — תיקון אפשרי</div>',
+                    unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
