@@ -422,7 +422,7 @@ def _clear_notifications():
             json.dump([], f)
 
 def _add_notification(agent: str, title: str, body: str, level: str = "info",
-                      key: str = "", extra: dict | None = None):
+                      key: str = "", extra=None):
     if key:
         cutoff = time.time() - 6 * 3600
         for n in _load_notifications():
@@ -546,7 +546,7 @@ def _run_monitor():
                     alerts += 1
     _add_log("monitor", f"סריקה הסתיימה — {alerts} התראות חדשות")
 
-def _deep_scan_stock(sym: str, meta: dict) -> dict | None:
+def _deep_scan_stock(sym: str, meta: dict):
     """Full technical analysis for one stock. Returns signal dict or None."""
     try:
         hist = yf.Ticker(sym).history(period="1y", interval="1d")
