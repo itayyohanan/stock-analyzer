@@ -353,6 +353,8 @@ _DEFS = {
     "demo2_speed":       "רגיל",
     "demo2_results":     None,
     "demo2_frame":       0,
+    "demo2_strategy":    "📊 RSI קלאסי",
+    "demo2_scenario":    None,
 }
 for _k, _v in _DEFS.items():
     if _k not in st.session_state:
@@ -1125,10 +1127,100 @@ RISK_PROFILES = {
 }
 
 ANIM_SPEED = {
-    "איטי": (3,   0.09),   # (frames_per_rerun, sleep_sec)
+    "איטי": (3,   0.09),
     "רגיל": (15,  0.025),
     "מהיר": (80,  0.008),
 }
+
+STRATEGY_PROFILES = {
+    "📊 RSI קלאסי": {
+        "desc": "קנה כש-RSI נמוך (מכירת יתר) ומכור כש-RSI גבוה — אסטרטגיית ניגוד מגמה.",
+        "mode": "rsi",
+    },
+    "🚀 מומנטום": {
+        "desc": "עקוב אחר המגמה — קנה כשהמניה שוברת שיאים חדשים ומכור בחולשה.",
+        "mode": "momentum",
+    },
+    "↩️ Mean Reversion": {
+        "desc": "קנה כשהמניה רחוקה מאוד מהממוצע ומכור כשהיא חוזרת אליו.",
+        "mode": "mean_reversion",
+    },
+}
+
+MARKET_SCENARIOS = [
+    {
+        "id": "ai_boom",
+        "name": "🤖 בום ה-AI 2023",
+        "emoji": "🚀",
+        "story": "NVDA זינקה 240%, AMD 127% — שנת הבינה המלאכותית הגדולה.",
+        "detail": "האם האסטרטגיה שלך הייתה תופסת את הרכבת?",
+        "years": (2023, 2024),
+        "tickers": ["NVDA","AMD","ARM","MRVL","PLTR"],
+        "risk": "אגרסיבי",
+        "strategy": "🚀 מומנטום",
+        "color": "#00b4d8",
+    },
+    {
+        "id": "bear_2022",
+        "name": "📉 שוק הדובים 2022",
+        "emoji": "💥",
+        "story": "הריבית עלתה בחדות — הטק קרס 50-80% תוך שנה.",
+        "detail": "האם ה-AI היה מציל את התיק?",
+        "years": (2022, 2023),
+        "tickers": ["NVDA","AMD","TSLA","SHOP","SNOW"],
+        "risk": "שמרני",
+        "strategy": "↩️ Mean Reversion",
+        "color": "#ef4444",
+    },
+    {
+        "id": "covid",
+        "name": "🦠 קריסה והתאוששות קוביד 2020",
+        "emoji": "📈",
+        "story": "קריסה של 35% תוך 5 שבועות ואז זינוק של 100%+ — הכי דרמטי בהיסטוריה.",
+        "detail": "מה ה-AI היה עושה בזמן הפאניקה?",
+        "years": (2020, 2021),
+        "tickers": ["NVDA","AMZN","SHOP","TSLA","PYPL"],
+        "risk": "מאוזן",
+        "strategy": "↩️ Mean Reversion",
+        "color": "#f59e0b",
+    },
+    {
+        "id": "cloud_boom",
+        "name": "☁️ בום הענן 2020-2021",
+        "emoji": "☁️",
+        "story": "עבודה מהבית הגדילה ביקוש לענן — SNOW, DDOG, NET זינקו 200%+.",
+        "detail": "מניות הענן שאף אחד לא הכיר לפני 2020.",
+        "years": (2020, 2022),
+        "tickers": ["SNOW","DDOG","NET","CRWD","ZS"],
+        "risk": "אגרסיבי",
+        "strategy": "🚀 מומנטום",
+        "color": "#a78bfa",
+    },
+    {
+        "id": "ev_2020",
+        "name": "⚡ מהפכת ה-EV 2020",
+        "emoji": "⚡",
+        "story": "טסלה קפצה 700% בשנת 2020 לבדה — אחד הזינוקים הגדולים בהיסטוריה.",
+        "detail": "האם אפשר היה לתפוס את הגל כולו?",
+        "years": (2020, 2021),
+        "tickers": ["TSLA","NVDA","AMD","PLTR","AAPL"],
+        "risk": "אגרסיבי",
+        "strategy": "🚀 מומנטום",
+        "color": "#22c55e",
+    },
+    {
+        "id": "fintech",
+        "name": "💳 פינטק 2020",
+        "emoji": "💳",
+        "story": "תשלומים דיגיטליים התפוצצו — PYPL, SQ, V זינקו עם המעבר לאון-ליין.",
+        "detail": "אסטרטגיית RSI הייתה קונה בתחתית הקורונה.",
+        "years": (2020, 2022),
+        "tickers": ["PYPL","SQ","V","MA","SHOP"],
+        "risk": "מאוזן",
+        "strategy": "📊 RSI קלאסי",
+        "color": "#00b4d8",
+    },
+]
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _dl(sym: str, start: str, end: str) -> pd.DataFrame:
@@ -1150,7 +1242,8 @@ def _date_le(d1: str, d2: str) -> bool:
         return True
 
 def _run_backtest(tickers: list, start_year: int, end_year: int,
-                  budget: float, target_pct: float, risk_key: str):
+                  budget: float, target_pct: float, risk_key: str,
+                  strategy_mode: str = "rsi"):
     rp    = RISK_PROFILES[risk_key]
     start = f"{start_year}-01-01"
     end   = f"{end_year}-12-31"
@@ -1223,13 +1316,28 @@ def _run_backtest(tickers: list, start_year: int, end_year: int,
             price  = float(price)
             pos    = positions[sym]
             pnl    = (price - pos["entry_price"]) / pos["entry_price"]
-            rsi_v  = float(rsi_d.at[dt, sym]) if (sym in rsi_d.columns and not pd.isna(rsi_d.at[dt, sym])) else None
+            rsi_v  = float(rsi_d.at[dt, sym])  if (sym in rsi_d.columns  and not pd.isna(rsi_d.at[dt, sym]))  else None
+            ma50_v = float(ma50_d.at[dt, sym])  if (sym in ma50_d.columns and not pd.isna(ma50_d.at[dt, sym]))  else None
+            ma200_v= float(ma200_d.at[dt, sym]) if (sym in ma200_d.columns and not pd.isna(ma200_d.at[dt, sym])) else None
 
             reason = None
             if pnl <= -rp["stop_loss"]:
                 reason = f"Stop Loss: {pnl*100:.1f}% 🛑"
-            elif rsi_v is not None and rsi_v > rp["rsi_sell"]:
-                reason = f"RSI={rsi_v:.0f} — אות מכירה 📉"
+            elif strategy_mode == "momentum":
+                # Momentum: exit when price falls below MA50 or RSI drops under 40
+                if ma50_v and price < ma50_v:
+                    reason = f"ירידה מתחת ל-MA50 — יציאת מומנטום 📉"
+                elif rsi_v is not None and rsi_v < 38:
+                    reason = f"RSI={rsi_v:.0f} — חולשת מומנטום 📉"
+            elif strategy_mode == "mean_reversion":
+                # Mean Reversion: exit when RSI normalizes or price reaches MA200
+                if rsi_v is not None and rsi_v > 62:
+                    reason = f"RSI={rsi_v:.0f} — חזרה לממוצע, יציאה 📤"
+                elif ma200_v and price >= ma200_v * 0.99:
+                    reason = f"חזרה ל-MA200 (${ma200_v:.2f}) — יציאה ✅"
+            else:  # rsi classic
+                if rsi_v is not None and rsi_v > rp["rsi_sell"]:
+                    reason = f"RSI={rsi_v:.0f} — אות מכירה 📉"
 
             if reason:
                 proceeds   = pos["shares"] * price
@@ -1254,6 +1362,13 @@ def _run_backtest(tickers: list, start_year: int, end_year: int,
             for s in positions
             if s in closes.columns and not pd.isna(closes.at[dt, s])
         )
+        # For momentum: compute recent high (20-day)
+        if strategy_mode == "momentum" and i >= 20:
+            high_20d = {s: float(closes[s].iloc[i-20:i].max())
+                        for s in closes.columns if s in closes.columns}
+        else:
+            high_20d = {}
+
         for sym in closes.columns:
             if sym in positions: continue
             price = closes.at[dt, sym]
@@ -1263,9 +1378,37 @@ def _run_backtest(tickers: list, start_year: int, end_year: int,
             ma50_v = float(ma50_d.at[dt, sym])  if (sym in ma50_d.columns and not pd.isna(ma50_d.at[dt, sym]))  else None
             ma200_v= float(ma200_d.at[dt, sym]) if (sym in ma200_d.columns and not pd.isna(ma200_d.at[dt, sym])) else None
 
-            if rsi_v is None or ma50_v is None: continue
-            if rsi_v >= rp["rsi_buy"]: continue
-            if price <= ma50_v: continue     # only buy above MA50
+            if rsi_v is None: continue
+
+            # ── Buy signal by strategy mode ──────────────────────────────────
+            should_buy = False
+            buy_reason = ""
+
+            if strategy_mode == "momentum":
+                # Buy when RSI > 55, price above MA50, breaking 20-day high
+                h20 = high_20d.get(sym)
+                if (rsi_v > 55 and ma50_v and price > ma50_v
+                        and h20 and price >= h20 * 0.99):
+                    should_buy = True
+                    buy_reason = f"פריצת שיא 20י׳, RSI={rsi_v:.0f} — מומנטום 🚀"
+
+            elif strategy_mode == "mean_reversion":
+                # Buy when RSI < 28 and price is >8% below MA200
+                if (rsi_v < 28 and ma200_v and price < ma200_v * 0.92):
+                    should_buy = True
+                    buy_reason = f"RSI={rsi_v:.0f}, רחוק {((ma200_v-price)/ma200_v*100):.0f}% מ-MA200 ↩️"
+
+            else:  # rsi classic
+                if ma50_v is None: continue
+                if rsi_v >= rp["rsi_buy"]: continue
+                if price <= ma50_v: continue
+                should_buy = True
+                ma_note = "מעל MA50"
+                if ma200_v:
+                    ma_note += " ו-MA200" if price > ma200_v else ", מתחת ל-MA200"
+                buy_reason = f"RSI={rsi_v:.0f}, {ma_note} 📈"
+
+            if not should_buy: continue
 
             max_inv = pv_now * rp["max_pos"]
             if cash < max_inv * 0.25: continue
@@ -1276,10 +1419,6 @@ def _run_backtest(tickers: list, start_year: int, end_year: int,
             cash -= shares * price
             positions[sym] = {"shares": shares, "entry_price": price,
                                "entry_date": dt.strftime("%d/%m/%Y")}
-
-            ma_note = "מחיר מעל MA50"
-            if ma200_v:
-                ma_note += " ו-MA200" if price > ma200_v else ", מתחת ל-MA200"
             trade_log.append({
                 "date":        dt.strftime("%d/%m/%Y"),
                 "action":      "buy",
@@ -1289,7 +1428,7 @@ def _run_backtest(tickers: list, start_year: int, end_year: int,
                 "entry_price": price,
                 "pnl_pct":     None,
                 "pnl_dollar":  None,
-                "reason":      f"RSI={rsi_v:.0f}, {ma_note} 📈",
+                "reason":      buy_reason,
             })
 
         # ── Daily snapshot ────────────────────────────────────────────────────
@@ -2827,81 +2966,129 @@ def _draw_portfolio_chart(dates, values, bh_vals, budget, target_val,
 # ── Setup screen ─────────────────────────────────────────────────────────────
 def _demo_setup():
     S = st.session_state
-    st.markdown(f"""<div style="background:{SURF};border:1px solid {BDR};
-        border-radius:14px;padding:26px 30px;direction:rtl;max-width:820px;">
-        <div style="font-size:1rem;font-weight:700;color:{TX};margin-bottom:20px;">
-            הגדר את יעדי הסימולציה — ה-AI יקבל את כל ההחלטות
-        </div>""", unsafe_allow_html=True)
 
-    c1, c2 = st.columns(2)
-    with c1:
-        budget = st.number_input("💰 תקציב התחלתי ($)",
-                                  min_value=1000, max_value=10_000_000,
-                                  value=int(S["demo2_budget"]), step=1000,
-                                  key="d2_budget")
-    with c2:
-        target_pct = st.number_input("🎯 יעד רווח (%)",
-                                      min_value=5, max_value=2000,
-                                      value=int(S["demo2_target_pct"]), step=5,
-                                      key="d2_target")
+    # ── Section 1: Scenario cards ─────────────────────────────────────────────
+    st.markdown(
+        f'<div style="font-size:1rem;font-weight:800;color:{TX};direction:rtl;'
+        f'margin-bottom:14px;">⚡ בחר תרחיש מוכן — לחץ להפעלה מיידית</div>',
+        unsafe_allow_html=True)
 
-    c3, c4 = st.columns(2)
-    with c3:
-        years = list(range(2010, 2025))
-        start_year = st.selectbox("📅 שנת התחלה", years,
-                                   index=years.index(S["demo2_start_year"]),
-                                   key="d2_sy")
-    with c4:
-        eyears = list(range(2011, 2026))
-        end_year = st.selectbox("📅 שנת סיום", eyears,
-                                 index=eyears.index(min(S["demo2_end_year"], 2025)),
-                                 key="d2_ey")
+    row1 = st.columns(3, gap="small")
+    row2 = st.columns(3, gap="small")
+    all_cols = row1 + row2
 
-    opts    = [f"{sym} — {name}" for sym, name in TRADEABLE]
-    default = [f"{sym} — {name}" for sym, name in TRADEABLE
-               if sym in S["demo2_tickers"]]
-    sel = st.multiselect("📋 מניות לסחור (עד 12)",
-                          opts, default=default,
-                          max_selections=12, key="d2_tickers_sel")
+    for col, sc in zip(all_cols, MARKET_SCENARIOS):
+        with col:
+            st.markdown(
+                f'<div style="background:linear-gradient(150deg,{SURF},{sc["color"]}12);'
+                f'border:1px solid {sc["color"]}44;border-top:3px solid {sc["color"]};'
+                f'border-radius:14px;padding:14px 16px;direction:rtl;min-height:110px;">'
+                f'<div style="font-size:1rem;font-weight:900;color:{sc["color"]};'
+                f'margin-bottom:5px;">{sc["name"]}</div>'
+                f'<div style="font-size:.73rem;color:{TX2};line-height:1.5;">{sc["story"]}</div>'
+                f'<div style="font-size:.68rem;color:{TX3};margin-top:5px;">{sc["detail"]}</div>'
+                f'</div>', unsafe_allow_html=True)
+            if st.button(f'{sc["emoji"]} הפעל', key=f"sc_{sc['id']}",
+                         use_container_width=True):
+                S["demo2_tickers"]    = sc["tickers"]
+                S["demo2_start_year"] = sc["years"][0]
+                S["demo2_end_year"]   = sc["years"][1]
+                S["demo2_risk"]       = sc["risk"]
+                S["demo2_strategy"]   = sc["strategy"]
+                S["demo2_budget"]     = S.get("demo2_budget", 10000.0)
+                S["demo2_target_pct"] = S.get("demo2_target_pct", 50.0)
+                S["demo2_speed"]      = S.get("demo2_speed", "רגיל")
+                S["demo2_state"]      = "computing"
+                st.rerun()
 
-    risk = st.radio("⚖️ רמת סיכון",
-                    ["שמרני", "מאוזן", "אגרסיבי"],
-                    index=["שמרני","מאוזן","אגרסיבי"].index(S["demo2_risk"]),
-                    horizontal=True, key="d2_risk")
+    # ── Section 2: Strategy selector ─────────────────────────────────────────
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-size:1rem;font-weight:800;color:{TX};direction:rtl;'
+        f'margin-bottom:12px;">🧠 בחר אסטרטגיית מסחר</div>',
+        unsafe_allow_html=True)
 
-    rp = RISK_PROFILES[risk]
-    st.markdown(f"""<div style="background:{SURF2};border-radius:8px;padding:11px 16px;
-        margin:14px 0;font-size:.82rem;color:{TX2};direction:rtl;">
-        <b style="color:{CYAN};">אסטרטגיה:</b>
-        קנה כש-RSI &lt; {rp['rsi_buy']} ומחיר מעל MA50 ·
-        מכור כש-RSI &gt; {rp['rsi_sell']} ·
-        Stop Loss {rp['stop_loss']*100:.0f}% ·
-        מקסימום {rp['max_pos']*100:.0f}% לכל מניה
-    </div>""", unsafe_allow_html=True)
+    strat_names = list(STRATEGY_PROFILES.keys())
+    cur_strat   = S.get("demo2_strategy", strat_names[0])
+    if cur_strat not in strat_names:
+        cur_strat = strat_names[0]
 
-    speed = st.radio("⚡ מהירות אנימציה",
-                     ["איטי", "רגיל", "מהיר"],
-                     index=["איטי","רגיל","מהיר"].index(S["demo2_speed"]),
-                     horizontal=True, key="d2_speed")
+    scols = st.columns(3, gap="small")
+    for col, sname in zip(scols, strat_names):
+        sp      = STRATEGY_PROFILES[sname]
+        is_sel  = (sname == cur_strat)
+        bdr_c   = CYAN if is_sel else BDR
+        bg      = f"{CYAN}14" if is_sel else SURF
+        with col:
+            st.markdown(
+                f'<div style="background:{bg};border:2px solid {bdr_c};'
+                f'border-radius:12px;padding:14px;direction:rtl;min-height:90px;">'
+                f'<div style="font-size:.9rem;font-weight:800;color:{TX if is_sel else TX2};">'
+                f'{sname}</div>'
+                f'<div style="font-size:.72rem;color:{TX2};margin-top:6px;line-height:1.5;">'
+                f'{sp["desc"]}</div>'
+                f'</div>', unsafe_allow_html=True)
+            if st.button("✓ בחר" if is_sel else "בחר", key=f"strat_{sname}",
+                         use_container_width=True,
+                         type="primary" if is_sel else "secondary"):
+                S["demo2_strategy"] = sname
+                st.rerun()
 
-    if st.button("🚀 הפעל סימולציה", type="primary", key="d2_go"):
-        tickers = [o.split(" — ")[0] for o in sel]
-        if not tickers:
-            st.error("בחר לפחות מניה אחת.")
-        elif start_year >= end_year:
-            st.error("שנת ההתחלה חייבת להיות לפני שנת הסיום.")
-        else:
-            S["demo2_budget"]     = float(budget)
-            S["demo2_target_pct"] = float(target_pct)
-            S["demo2_start_year"] = start_year
-            S["demo2_end_year"]   = end_year
-            S["demo2_tickers"]    = tickers
-            S["demo2_risk"]       = risk
-            S["demo2_speed"]      = speed
-            S["demo2_state"]      = "computing"
-            st.rerun()
+    # ── Section 3: Custom setup ───────────────────────────────────────────────
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    with st.expander("⚙️ הגדרות מתקדמות — תאריכים, מניות ותקציב"):
+        c1, c2 = st.columns(2)
+        with c1:
+            budget = st.number_input("💰 תקציב התחלתי ($)",
+                                      min_value=1000, max_value=10_000_000,
+                                      value=int(S["demo2_budget"]), step=1000,
+                                      key="d2_budget")
+        with c2:
+            target_pct = st.number_input("🎯 יעד רווח (%)",
+                                          min_value=5, max_value=2000,
+                                          value=int(S["demo2_target_pct"]), step=5,
+                                          key="d2_target")
+        c3, c4 = st.columns(2)
+        with c3:
+            years      = list(range(2010, 2025))
+            start_year = st.selectbox("📅 שנת התחלה", years,
+                                       index=years.index(S["demo2_start_year"]),
+                                       key="d2_sy")
+        with c4:
+            eyears   = list(range(2011, 2026))
+            end_year = st.selectbox("📅 שנת סיום", eyears,
+                                     index=eyears.index(min(S["demo2_end_year"], 2025)),
+                                     key="d2_ey")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        opts    = [f"{sym} — {name}" for sym, name in TRADEABLE]
+        default = [f"{sym} — {name}" for sym, name in TRADEABLE
+                   if sym in S["demo2_tickers"]]
+        sel = st.multiselect("📋 מניות לסחור (עד 12)", opts,
+                              default=default, max_selections=12, key="d2_tickers_sel")
+
+        risk  = st.radio("⚖️ רמת סיכון", ["שמרני","מאוזן","אגרסיבי"],
+                          index=["שמרני","מאוזן","אגרסיבי"].index(S["demo2_risk"]),
+                          horizontal=True, key="d2_risk")
+        speed = st.radio("⚡ מהירות אנימציה", ["איטי","רגיל","מהיר"],
+                          index=["איטי","רגיל","מהיר"].index(S["demo2_speed"]),
+                          horizontal=True, key="d2_speed")
+
+        if st.button("🚀 הפעל סימולציה מותאמת אישית", type="primary", key="d2_go"):
+            tickers = [o.split(" — ")[0] for o in sel]
+            if not tickers:
+                st.error("בחר לפחות מניה אחת.")
+            elif start_year >= end_year:
+                st.error("שנת ההתחלה חייבת להיות לפני שנת הסיום.")
+            else:
+                S["demo2_budget"]     = float(budget)
+                S["demo2_target_pct"] = float(target_pct)
+                S["demo2_start_year"] = start_year
+                S["demo2_end_year"]   = end_year
+                S["demo2_tickers"]    = tickers
+                S["demo2_risk"]       = risk
+                S["demo2_speed"]      = speed
+                S["demo2_state"]      = "computing"
+                st.rerun()
 
 
 # ── Animation screen ──────────────────────────────────────────────────────────
@@ -3019,11 +3206,17 @@ def _demo_report():
     reached_s = "✅ כן — הגענו ליעד!" if r["tgt_reached"] else "❌ לא הגענו ליעד"
 
     # Header summary
+    strat_lbl = S.get("demo2_strategy", "📊 RSI קלאסי")
     st.markdown(f"""<div style="background:{SURF};border:1px solid {BDR};
         border-radius:14px;padding:24px 28px;direction:rtl;margin-bottom:16px;">
-        <div style="font-size:1.1rem;font-weight:800;color:{TX};margin-bottom:16px;">
-            📊 דוח סיכום — {S['demo2_start_year']}–{S['demo2_end_year']} ·
-            <span style="color:{CYAN};">{', '.join(S['demo2_tickers'])}</span>
+        <div style="font-size:1.1rem;font-weight:800;color:{TX};margin-bottom:4px;">
+            📊 דוח סיכום — {S['demo2_start_year']}–{S['demo2_end_year']}
+        </div>
+        <div style="font-size:.78rem;color:{TX2};margin-bottom:14px;">
+            <span style="background:{CYAN}22;color:{CYAN};padding:2px 8px;border-radius:8px;
+            border:1px solid {CYAN}44;">{strat_lbl}</span>
+            &nbsp;· סיכון: {S['demo2_risk']} ·
+            {', '.join(S['demo2_tickers'])}
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
             <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
@@ -3131,10 +3324,13 @@ def page_demo():
         _demo_setup()
 
     elif state == "computing":
-        with st.spinner("⏳ מחשב סימולציה היסטורית… עשוי לקחת 10-30 שניות"):
+        strat_key  = S.get("demo2_strategy", "📊 RSI קלאסי")
+        strat_mode = STRATEGY_PROFILES.get(strat_key, {}).get("mode", "rsi")
+        with st.spinner(f"⏳ מחשב סימולציה — אסטרטגיית {strat_key}…"):
             results = _run_backtest(
                 S["demo2_tickers"], S["demo2_start_year"], S["demo2_end_year"],
                 S["demo2_budget"],  S["demo2_target_pct"], S["demo2_risk"],
+                strategy_mode=strat_mode,
             )
         if results is None or not results["daily_vals"]:
             st.error("לא ניתן לטעון נתונים לתקופה שנבחרה. נסה מניות אחרות או שנים אחרות.")
