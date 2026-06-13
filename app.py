@@ -3463,10 +3463,68 @@ def page_agents():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# LIVE TICKER BAR — shown on every page
+# ══════════════════════════════════════════════════════════════════════════════
+def _live_bar():
+    """Compact live market ticker strip shown on all pages."""
+    try:
+        ov = fetch_market_overview()
+    except Exception:
+        return
+    if not ov:
+        return
+
+    ORDER = ["S&P 500", 'נאסד"ק', "דאו", "VIX", "זהב", "נפט", "ביטקוין", "דולר/שקל"]
+    items_html = ""
+    for name in ORDER:
+        d = ov.get(name)
+        if not d:
+            continue
+        price = d["price"]
+        chg   = d.get("chg", 0)
+        c     = GRN if chg >= 0 else RED
+        arrow = "▲" if chg >= 0 else "▼"
+        # Format price nicely
+        if name == "ביטקוין":
+            p_str = f"${price:,.0f}"
+        elif name == "דולר/שקל":
+            p_str = f"₪{1/price:.4f}" if price else "—"
+        elif price >= 1000:
+            p_str = f"{price:,.0f}"
+        else:
+            p_str = f"{price:.2f}"
+
+        items_html += (
+            f'<span style="white-space:nowrap;margin:0 14px;">'
+            f'<span style="color:{TX2};font-size:.72rem;">{name}</span>'
+            f'&nbsp;<span style="color:{TX};font-weight:700;font-size:.78rem;">{p_str}</span>'
+            f'&nbsp;<span style="color:{c};font-size:.72rem;">{arrow}{abs(chg):.2f}%</span>'
+            f'</span><span style="color:{BDR2};font-size:.7rem;">|</span>'
+        )
+
+    now_str = datetime.now().strftime("%H:%M:%S")
+    st.markdown(
+        f'<div style="background:{SURF};border:1px solid {BDR};border-radius:10px;'
+        f'padding:7px 16px;margin-bottom:14px;display:flex;align-items:center;'
+        f'justify-content:space-between;overflow-x:auto;direction:ltr;'
+        f'box-shadow:0 1px 8px rgba(0,0,0,.3);">'
+        f'<div style="display:flex;align-items:center;gap:0;flex-wrap:nowrap;">'
+        f'<span style="color:{GRN};font-size:.7rem;font-weight:700;'
+        f'margin-left:14px;white-space:nowrap;direction:rtl;">'
+        f'🟢 LIVE&nbsp;{now_str}</span>'
+        f'{items_html}'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ROUTER
 # ══════════════════════════════════════════════════════════════════════════════
 _ensure_agents()
 _nav()
+_live_bar()
 
 _page = st.session_state["page"]
 if   _page == "home":      page_home()
