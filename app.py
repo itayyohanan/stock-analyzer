@@ -1991,12 +1991,275 @@ def _stock_detail(sym: str):
     elif rsi_val > 65: rsi_sig, rsi_c = "מכירה",  RED
     else:              rsi_sig, rsi_c = "המתנה",  AMB
 
+    # ── Full scoring (computed here so metrics row shows final verdict) ──────
+    score      = 0
+    indicators = []
+
+    # RSI
+    if not np.isnan(rsi_val):
+        if rsi_val < 30:
+            d = +2; ic = "📉"; lbl = f"RSI = {rsi_val:.0f}"; col = GRN
+            det = "מכירת יתר חריפה — לחץ מכירות קיצוני בדרך כלל מקדים היפוך מגמה. אזור כניסה אטרקטיבי."
+        elif rsi_val < 40:
+            d = +1; ic = "📉"; lbl = f"RSI = {rsi_val:.0f}"; col = GRN
+            det = "RSI נמוך מסמן חולשה זמנית. עבור מניות צמיחה איכותיות, ירידה לאזור זה היא לעיתים הזדמנות כניסה."
+        elif rsi_val > 70:
+            d = -2; ic = "📈"; lbl = f"RSI = {rsi_val:.0f}"; col = RED
+            det = "קניית יתר — מומנטום חזק אך סיכון לתיקון גבוה. שקול המתנה לתיקון לפני כניסה."
+        elif rsi_val > 60:
+            d = -1; ic = "📈"; lbl = f"RSI = {rsi_val:.0f}"; col = AMB
+            det = "RSI גבוה מעיד על תנופה, אך רכישה כעת מגדילה חשיפת סיכון. עדיף לחכות להתבססות."
+        else:
+            d = 0; ic = "➡️"; lbl = f"RSI = {rsi_val:.0f}"; col = TX2
+            det = "RSI באזור נייטרלי — אין אות ברור. מומלץ לעקוב אחר פריצה מהטווח."
+        score += d; indicators.append((ic, "RSI", lbl, det, col, d))
+
+    # MA50
+    if ma50:
+        gap50 = (cl - ma50) / ma50 * 100
+        if cl > ma50:
+            d = +1; col = GRN
+            lbl = f"מחיר מעל MA50 (+{gap50:.1f}%)"
+            det = f"המחיר {gap50:.1f}% מעל ממוצע 50 יום — מגמה עולה לטווח בינוני."
+        else:
+            d = -1; col = RED
+            lbl = f"מחיר מתחת ל-MA50 ({gap50:.1f}%)"
+            det = f"המחיר {abs(gap50):.1f}% מתחת לממוצע 50 יום — חולשה בינונית. עלייה מעל MA50 תהיה אות חיובי."
+        score += d; indicators.append(("📊", "ממוצע נע 50", lbl, det, col, d))
+
+    # MA200
+    if ma200:
+        gap200 = (cl - ma200) / ma200 * 100
+        if cl > ma200:
+            d = +1; col = GRN
+            lbl = f"מחיר מעל MA200 (+{gap200:.1f}%)"
+            det = f"המחיר מעל ממוצע 200 יום — מגמה עולה לטווח ארוך."
+        else:
+            d = -1; col = RED
+            lbl = f"מחיר מתחת ל-MA200 ({gap200:.1f}%)"
+            det = f"המחיר {abs(gap200):.1f}% מתחת לממוצע 200 יום — תמונה שלילית לטווח ארוך."
+        score += d; indicators.append(("📉", "ממוצע נע 200", lbl, det, col, d))
+
+    # Golden / Death Cross
+    if ma50 and ma200:
+        if ma50 > ma200:
+            gap_x = (ma50 - ma200) / ma200 * 100
+            d = +1; col = GRN
+            lbl = f"Golden Cross: MA50 > MA200 (+{gap_x:.1f}%)"
+            det = "ממוצע 50 יום מעל ממוצע 200 יום — צלב הזהב. מסמן מגמה עולה לטווח ארוך."
+        else:
+            gap_x = (ma200 - ma50) / ma200 * 100
+            d = -1; col = RED
+            lbl = f"Death Cross: MA50 < MA200 (-{gap_x:.1f}%)"
+            det = "ממוצע 50 יום מתחת לממוצע 200 יום — צלב המוות. מסמן מגמה יורדת לטווח ארוך."
+        score += d; indicators.append(("✂️", "Golden/Death Cross", lbl, det, col, d))
+
+    # MACD
+    if "MACD" in df.columns and "MACD_S" in df.columns:
+        macd_v = float(df["MACD"].iloc[-1])
+        macd_s = float(df["MACD_S"].iloc[-1])
+        macd_h = macd_v - macd_s
+        if macd_v > macd_s:
+            d = +1; col = GRN
+            lbl = f"MACD > Signal (+{macd_h:.2f})"
+            det = "קו MACD מעל קו האות — מומנטום עולה."
+        else:
+            d = -1; col = RED
+            lbl = f"MACD < Signal ({macd_h:.2f})"
+            det = "קו MACD מתחת לקו האות — מומנטום יורד. ייתכן שהלחץ ימשך בטווח הקצר."
+        score += d; indicators.append(("⚡", "MACD", lbl, det, col, d))
+
+    # Bollinger Bands
+    if "BB_L" in df.columns and "BB_U" in df.columns:
+        bb_l = float(df["BB_L"].iloc[-1])
+        bb_u = float(df["BB_U"].iloc[-1])
+        bb_w = bb_u - bb_l if bb_u > bb_l else 1
+        bb_pct = (cl - bb_l) / bb_w
+        if bb_pct <= 0.10:
+            d = +1; col = GRN
+            lbl = f"ליד פס בולינגר תחתון ({bb_pct*100:.0f}% בטווח)"
+            det = "המחיר ליד פס בולינגר התחתון — אות קנייה טכני. בדרך כלל מסמן מכירת יתר זמנית."
+        elif bb_pct >= 0.90:
+            d = -1; col = RED
+            lbl = f"ליד פס בולינגר עליון ({bb_pct*100:.0f}% בטווח)"
+            det = "המחיר ליד פס בולינגר העליון — מתיחות טכנית. סיכוי לתיקון לכיוון הממוצע."
+        else:
+            d = 0; col = TX2
+            lbl = f"בולינגר: {bb_pct*100:.0f}% בתוך הטווח"
+            det = f"המחיר ב-{bb_pct*100:.0f}% בין הפסים (0%=תחתון, 100%=עליון). אין אות קיצוני."
+        score += d; indicators.append(("🎯", "בולינגר בנדס", lbl, det, col, d))
+
+    # 52-week range
+    w52_hi = info.get("fiftyTwoWeekHigh")
+    w52_lo = info.get("fiftyTwoWeekLow")
+    if w52_hi and w52_lo and w52_hi > w52_lo:
+        w52_r   = w52_hi - w52_lo
+        w52_pct = (cl - w52_lo) / w52_r * 100
+        if w52_pct <= 15:
+            d = +1; col = GRN
+            lbl = f"קרוב לשפל 52 שבועות ({w52_pct:.0f}% מהטווח)"
+            det = f"המחיר קרוב לשפל שנה (${w52_lo:.1f}) — אזור היסטורי של קנייה."
+        elif w52_pct >= 90:
+            d = -1; col = AMB
+            lbl = f"קרוב לשיא 52 שבועות ({w52_pct:.0f}% מהטווח)"
+            det = f"המחיר קרוב לשיא שנה (${w52_hi:.1f}) — עמידות היסטורית. לא בהכרח שלילי לחברות חזקות."
+        else:
+            d = 0; col = TX2
+            lbl = f"טווח 52 שבועות: {w52_pct:.0f}%"
+            det = f"המחיר ב-{w52_pct:.0f}% בין שפל שנה (${w52_lo:.1f}) לשיא (${w52_hi:.1f})."
+        score += d; indicators.append(("📏", "טווח 52 שבועות", lbl, det, col, d))
+
+    # Momentum 30d
+    if len(df) >= 30:
+        p30 = float(df["Close"].iloc[-30])
+        mom30 = (cl - p30) / p30 * 100
+        if mom30 > 20:
+            d = -1; col = AMB
+            lbl = f"מומנטום 30י׳: +{mom30:.1f}%"
+            det = f"עלייה חדה של {mom30:.1f}% ב-30 יום — מתיחות גבוהה. כניסה כעת מגדילה סיכון לתיקון."
+        elif mom30 > 5:
+            d = +1; col = GRN
+            lbl = f"מומנטום 30י׳: +{mom30:.1f}%"
+            det = f"עלייה בריאה של {mom30:.1f}% ב-30 יום — מגמה חיובית ויציבה."
+        elif mom30 < -20:
+            d = +1; col = GRN
+            lbl = f"מומנטום 30י׳: {mom30:.1f}%"
+            det = f"ירידה חדה של {abs(mom30):.1f}% ב-30 יום — מכירת יתר. פוטנציאל התאוששות לאחר התייצבות."
+        elif mom30 < -5:
+            d = -1; col = RED
+            lbl = f"מומנטום 30י׳: {mom30:.1f}%"
+            det = f"ירידה של {abs(mom30):.1f}% ב-30 יום — חולשה. בדוק אם יש שינוי פונדמנטלי."
+        else:
+            d = 0; col = TX2
+            lbl = f"מומנטום 30י׳: {mom30:+.1f}%"
+            det = "תנועת מחיר מינורית ב-30 יום — ניטרלי."
+        score += d; indicators.append(("🔄", "מומנטום 30 יום", lbl, det, col, d))
+
+    # Analyst consensus
+    rec_key   = (info.get("recommendationKey") or "").lower()
+    n_analyst = info.get("numberOfAnalystOpinions") or 0
+    tgt_price = info.get("targetMeanPrice")
+    if rec_key in ("buy", "strong_buy"):
+        upside = (tgt_price / cl - 1) * 100 if tgt_price else None
+        d = +1; col = GRN
+        lbl = f"אנליסטים: {rec_key.replace('_',' ').title()}"
+        det = (f"{n_analyst} אנליסטים ממליצים קנייה" +
+               (f" · יעד ${tgt_price:,.0f} (אפסייד {upside:.0f}%)" if upside else ""))
+    elif rec_key in ("sell", "strong_sell", "underperform"):
+        d = -1; col = RED
+        lbl = f"אנליסטים: {rec_key.replace('_',' ').title()}"
+        det = f"{n_analyst} אנליסטים ממליצים מכירה — זהירות."
+    elif rec_key == "hold":
+        d = 0; col = AMB
+        lbl = "אנליסטים: החזקה"
+        det = f"{n_analyst} אנליסטים ממליצים המתנה — אין קטליסט מיידי."
+    else:
+        d = 0; col = TX3
+        lbl = "אנליסטים: אין נתון"; det = "לא נמצאו המלצות אנליסטים."
+    score += d; indicators.append(("👨‍💼", "אנליסטים", lbl, det, col, d))
+
+    # Revenue / Earnings growth
+    rev_g = info.get("revenueGrowth")
+    ear_g = info.get("earningsGrowth")
+    if rev_g is not None:
+        if rev_g > 0.20:
+            d = +2; col = GRN
+            lbl = f"צמיחת הכנסות {rev_g*100:.0f}%"
+            det = f"צמיחה של {rev_g*100:.0f}% בהכנסות — מאפיין ליבה של מניות צמיחה."
+        elif rev_g > 0.05:
+            d = +1; col = GRN
+            lbl = f"צמיחת הכנסות {rev_g*100:.0f}%"
+            det = f"צמיחה מתונה של {rev_g*100:.0f}% — בריאה אך לא מרשימה לרף מניית צמיחה."
+        elif rev_g < -0.05:
+            d = -1; col = RED
+            lbl = f"ירידת הכנסות {rev_g*100:.0f}%"
+            det = "ירידה בהכנסות — דגל אדום. בדוק אם זמנית."
+        else:
+            d = 0; col = AMB
+            lbl = f"הכנסות יציבות ({rev_g*100:.0f}%)"
+            det = "צמיחה אפסית — לא מתאים לפרופיל מניית צמיחה."
+        ear_str = f" · רווח: {ear_g*100:.0f}%" if ear_g else ""
+        score += d; indicators.append(("💰", "פונדמנטלים", lbl + ear_str, det, col, d))
+
+    # Gross margin
+    margin = info.get("grossMargins")
+    if margin and margin > 0.50:
+        d = +1; score += d
+        indicators.append(("📦", "שולי רווח גולמי",
+                           f"מרווח גולמי {margin*100:.0f}%",
+                           f"שולי רווח גולמי {margin*100:.0f}% — pricing power חזק. מצדיק מכפילים גבוהים.",
+                           GRN, d))
+
+    # Free Cash Flow
+    fcf = info.get("freeCashflow")
+    if fcf is not None:
+        fcf_b = fcf / 1e9
+        if fcf > 0:
+            d = +1; col = GRN
+            lbl = f"FCF חיובי: ${fcf_b:.1f}B"
+            det = f"תזרים מזומנים חופשי חיובי של ${fcf_b:.1f}B — החברה מייצרת מזומן אמיתי."
+        else:
+            d = -1; col = RED
+            lbl = f"FCF שלילי: ${fcf_b:.1f}B"
+            det = f"תזרים מזומנים חופשי שלילי — שורפת מזומן. נורמלי לסטארטאפים, מדאיג לחברות בוגרות."
+        score += d; indicators.append(("💵", "תזרים מזומנים (FCF)", lbl, det, col, d))
+
+    # Debt-to-Equity
+    de_raw = info.get("debtToEquity")
+    if de_raw is not None:
+        de_val = de_raw / 100
+        if de_val < 0.5:
+            d = +1; col = GRN
+            lbl = f"חוב/הון נמוך ({de_val:.2f})"
+            det = f"D/E = {de_val:.2f} — מינוף נמוך. החברה לא תלויה בחוב."
+        elif de_val > 2.0:
+            d = -1; col = RED
+            lbl = f"חוב/הון גבוה ({de_val:.2f})"
+            det = f"D/E = {de_val:.2f} — מינוף גבוה. בריבית גבוהה זה מגדיל סיכון."
+        else:
+            d = 0; col = AMB
+            lbl = f"חוב/הון בינוני ({de_val:.2f})"
+            det = f"D/E = {de_val:.2f} — מינוף מתון. נורמלי לחברות בוגרות."
+        score += d; indicators.append(("🏦", "יחס חוב/הון (D/E)", lbl, det, col, d))
+
+    # Volume trend
+    if "Vol_ratio" in df.columns and not pd.isna(df["Vol_ratio"].iloc[-1]):
+        vr = float(df["Vol_ratio"].iloc[-1])
+        if vr > 1.5:
+            if chg_pct > 0:
+                d = +1; col = GRN
+                lbl = f"נפח גבוה ({vr:.1f}x ממוצע) עם עלייה"
+                det = f"נפח {(vr-1)*100:.0f}% מעל הממוצע לצד עלייה — מומנטום חיובי עם אישור נפח."
+            else:
+                d = -1; col = RED
+                lbl = f"נפח גבוה ({vr:.1f}x ממוצע) עם ירידה"
+                det = "נפח מסחר גבוה לצד ירידה — לחץ מכירות משמעותי."
+            score += d; indicators.append(("📊", "נפח מסחר", lbl, det, col, d))
+
+    # Earnings date
+    earnings_dt = cal.get("earnings_date")
+    if earnings_dt:
+        days_to_earn = (pd.Timestamp(earnings_dt) - pd.Timestamp(datetime.now())).days
+        if 0 <= days_to_earn <= 14:
+            d = -1; score += d
+            indicators.append(("📅", "דוח רווחים",
+                f"דוח בעוד {days_to_earn} ימים ({pd.Timestamp(earnings_dt).strftime('%d/%m/%Y')})",
+                "הדוח הרבעוני קרוב — תנודתיות גבוהה צפויה. שקול לחכות לאחרי הדוח.",
+                AMB, d))
+
+    # Map score → verdict
+    if   score >=  6: rec_label, rec_color, rec_icon = "קנייה חזקה",  GRN, "🟢"
+    elif score >=  3: rec_label, rec_color, rec_icon = "קנייה",       GRN, "🟩"
+    elif score >= -2: rec_label, rec_color, rec_icon = "החזקה",       AMB, "🟡"
+    elif score >= -4: rec_label, rec_color, rec_icon = "מכירה",       RED, "🔴"
+    else:             rec_label, rec_color, rec_icon = "מכירה חזקה",  RED, "🔻"
+
     # ── Key metrics cards ─────────────────────────────────────────────────────
     mc_items = [
         ("מחיר",       f"${cl:,.2f}",          TX),
         ("שינוי יומי", f"{'+'if chg_pct>=0 else ''}{chg_pct:.2f}%", chg_c),
         ("RSI",        f"{rsi_val:.0f}" if not np.isnan(rsi_val) else "—", rsi_c),
-        ("אות",        rsi_sig,           rsi_c),
+        ("המלצה",      rec_label,         rec_color),
         ("MA 50",      f"${ma50:,.2f}"  if ma50  else "—", CYAN),
         ("MA 200",     f"${ma200:,.2f}" if ma200 else "—", AMB),
     ]
@@ -2206,146 +2469,7 @@ def _stock_detail(sym: str):
                 </div>
             </div>""", unsafe_allow_html=True)
 
-    # ── AI Recommendation ─────────────────────────────────────────────────────
-    score       = 0
-    indicators  = []   # list of (icon, label, detail, color, score_delta)
-
-    # ── RSI ──
-    if not np.isnan(rsi_val):
-        if rsi_val < 30:
-            d = +2; ic = "📉"; lbl = f"RSI = {rsi_val:.0f}"; det = "המניה במצב מכירת יתר חריפה — לחץ מכירות קיצוני בדרך כלל מקדים היפוך מגמה. אזור כניסה אטרקטיבי."
-            col = GRN
-        elif rsi_val < 40:
-            d = +1; ic = "📉"; lbl = f"RSI = {rsi_val:.0f}"; det = "RSI נמוך מסמן חולשה זמנית. עבור מניות צמיחה איכותיות, ירידה לאזור זה היא לעיתים הזדמנות כניסה."
-            col = GRN
-        elif rsi_val > 70:
-            d = -2; ic = "📈"; lbl = f"RSI = {rsi_val:.0f}"; det = "המניה במצב קנייה יתר — המומנטום חזק אך הסיכון לתיקון מחיר גבוה. שקול המתנה לתיקון לפני כניסה."
-            col = RED
-        elif rsi_val > 60:
-            d = -1; ic = "📈"; lbl = f"RSI = {rsi_val:.0f}"; det = "RSI גבוה מעיד על תנופה, אך רכישה כעת מגדילה את חשיפת הסיכון. עדיף לחכות להתבססות."
-            col = AMB
-        else:
-            d = 0;  ic = "➡️"; lbl = f"RSI = {rsi_val:.0f}"; det = "RSI נמצא באזור נייטרלי — אין אות ברור לכיוון. מומלץ לעקוב אחר פריצה מהטווח."
-            col = TX2
-        score += d
-        indicators.append((ic, "RSI", lbl, det, col, d))
-
-    # ── MA50 ──
-    if ma50:
-        gap50 = (cl - ma50) / ma50 * 100
-        if cl > ma50:
-            d = +1; ic = "📊"; lbl = f"מחיר מעל MA50 (+{gap50:.1f}%)"; det = f"המחיר נמצא {gap50:.1f}% מעל הממוצע נע של 50 יום — מגמה עולה לטווח בינוני. בדרך כלל סימן לעוצמה טכנית."; col = GRN
-        else:
-            d = -1; ic = "📊"; lbl = f"מחיר מתחת ל-MA50 ({gap50:.1f}%)"; det = f"המחיר נמוך ב-{abs(gap50):.1f}% ממוצע 50 יום — חולשה בינונית. עלייה חזרה מעל MA50 תהיה אות שחיובי."; col = RED
-        score += d
-        indicators.append(("📊", "ממוצע נע 50", lbl, det, col, d))
-
-    # ── MA200 ──
-    if ma200:
-        gap200 = (cl - ma200) / ma200 * 100
-        if cl > ma200:
-            d = +1; lbl = f"מחיר מעל MA200 (+{gap200:.1f}%)"; det = f"המחיר מעל ממוצע 200 יום — מגמה עולה לטווח ארוך. מניות צמיחה מתחת ל-MA200 נחשבות בסיכון גבוה יותר."; col = GRN
-        else:
-            d = -1; lbl = f"מחיר מתחת ל-MA200 ({gap200:.1f}%)"; det = f"המחיר {abs(gap200):.1f}% מתחת לממוצע 200 יום — תמונה ארוכת טווח שלילית. כדאי להמתין לאישור היפוך."; col = RED
-        score += d
-        indicators.append(("📉", "ממוצע נע 200", lbl, det, col, d))
-
-    # ── MACD ──
-    if "MACD" in df.columns and "MACD_S" in df.columns:
-        macd_v = float(df["MACD"].iloc[-1])
-        macd_s = float(df["MACD_S"].iloc[-1])
-        macd_h = macd_v - macd_s
-        if macd_v > macd_s:
-            d = +1; lbl = f"MACD > Signal (+{macd_h:.2f})"; det = "קו MACD מעל קו האות — מומנטום עולה. בשילוב עם RSI נמוך זהו אות כניסה משמעותי לטווח הקצר-בינוני."; col = GRN
-        else:
-            d = -1; lbl = f"MACD < Signal ({macd_h:.2f})"; det = "קו MACD מתחת לקו האות — מומנטום יורד. ייתכן שהלחץ ימשך בטווח הקצר."; col = RED
-        score += d
-        indicators.append(("⚡", "MACD", lbl, det, col, d))
-
-    # ── Analyst consensus ──
-    rec_key   = (info.get("recommendationKey") or "").lower()
-    n_analyst = info.get("numberOfAnalystOpinions") or 0
-    tgt_price = info.get("targetMeanPrice")
-    if rec_key in ("buy", "strong_buy"):
-        upside = (tgt_price / cl - 1) * 100 if tgt_price else None
-        d = +1
-        lbl = f"אנליסטים: {rec_key.replace('_',' ').title()}"
-        det = (f"{n_analyst} אנליסטים ממליצים קנייה" +
-               (f" · יעד מחיר ממוצע ${tgt_price:,.0f} (אפסייד {upside:.0f}%)" if upside else ""))
-        col = GRN
-    elif rec_key in ("sell", "strong_sell", "underperform"):
-        d = -1; lbl = f"אנליסטים: {rec_key.replace('_',' ').title()}"
-        det = f"{n_analyst} אנליסטים ממליצים מכירה — זהירות."; col = RED
-    elif rec_key == "hold":
-        d = 0; lbl = "אנליסטים: החזקה"
-        det = f"{n_analyst} אנליסטים ממליצים המתנה — אין קטליסט מיידי ברדאר."; col = AMB
-    else:
-        d = 0; lbl = "אנליסטים: אין נתון"; det = "לא נמצאו המלצות אנליסטים"; col = TX3
-    score += d
-    indicators.append(("👨‍💼", "אנליסטים", lbl, det, col, d))
-
-    # ── Revenue growth ──
-    rev_g = info.get("revenueGrowth")
-    ear_g = info.get("earningsGrowth")
-    if rev_g is not None:
-        if rev_g > 0.20:
-            d = +2; lbl = f"צמיחת הכנסות {rev_g*100:.0f}%"
-            det = f"צמיחה של {rev_g*100:.0f}% בהכנסות — מאפיין ליבה של מניות צמיחה. שוק ה-AI/סמיקונדקטורים מצדיק מכפילים גבוהים בשלב זה."; col = GRN
-        elif rev_g > 0.05:
-            d = +1; lbl = f"צמיחת הכנסות {rev_g*100:.0f}%"
-            det = f"צמיחה מתונה של {rev_g*100:.0f}% — בריאה אך לא מרשימה לרף מניית צמיחה."; col = GRN
-        elif rev_g < -0.05:
-            d = -1; lbl = f"ירידת הכנסות {rev_g*100:.0f}%"
-            det = f"ירידה בהכנסות — דגל אדום עבור מניות צמיחה. בדוק אם מדובר בתופעה זמנית."; col = RED
-        else:
-            d = 0; lbl = f"הכנסות יציבות ({rev_g*100:.0f}%)"
-            det = "צמיחה אפסית — לא מתאימה לפרופיל מניית צמיחה אגרסיבית."; col = AMB
-        score += d
-        ear_str = f" · רווח: {ear_g*100:.0f}%" if ear_g else ""
-        indicators.append(("💰", "פונדמנטלים", lbl + ear_str, det, col, d))
-
-    # ── Profitability margin ──
-    margin = info.get("grossMargins")
-    if margin and margin > 0.50:
-        d = +1; score += d
-        indicators.append(("📦", "שולי רווח גולמי",
-                           f"מרווח גולמי {margin*100:.0f}%",
-                           f"מרווח גולמי של {margin*100:.0f}% — סימן לעוצמת תמחור (pricing power). חיוני למניות צמיחה להצדיק מכפילים גבוהים.",
-                           GRN, d))
-
-    # ── Volume trend ──
-    if "Vol_ratio" in df.columns and not pd.isna(df["Vol_ratio"].iloc[-1]):
-        vr = float(df["Vol_ratio"].iloc[-1])
-        if vr > 1.5:
-            if chg_pct > 0:
-                d = +1; col = GRN
-                lbl = f"נפח גבוה ({vr:.1f}x ממוצע) — עם עלייה"
-                det = f"נפח המסחר גבוה ב-{(vr-1)*100:.0f}% מהממוצע, לצד עלייה במחיר — מומנטום חיובי עם אישור נפח."
-            else:
-                d = -1; col = RED
-                lbl = f"נפח גבוה ({vr:.1f}x ממוצע) — עם ירידה"
-                det = f"נפח מסחר גבוה לצד ירידה במחיר — לחץ מכירות משמעותי. מאותת חולשה."
-            score += d
-            indicators.append(("📊", "נפח מסחר", lbl, det, col, d))
-
-    # ── Earnings date warning ──
-    earnings_dt = cal.get("earnings_date")
-    if earnings_dt:
-        days_to_earn = (pd.Timestamp(earnings_dt) - pd.Timestamp(datetime.now())).days
-        if 0 <= days_to_earn <= 14:
-            d = -1; score += d
-            indicators.append(("📅", "דוח רווחים",
-                f"דוח רווחים בעוד {days_to_earn} ימים ({pd.Timestamp(earnings_dt).strftime('%d/%m/%Y')})",
-                "הדוח הרבעוני קרוב — תנודתיות גבוהה צפויה. שקול לחכות לאחרי הדוח לפני כניסה.",
-                AMB, d))
-
-    # ── Map score → verdict ──
-    if   score >=  5: rec_label, rec_color, rec_icon = "קנייה חזקה",  GRN, "🟢"
-    elif score >=  3: rec_label, rec_color, rec_icon = "קנייה",       GRN, "🟩"
-    elif score >= -1: rec_label, rec_color, rec_icon = "החזקה",       AMB, "🟡"
-    elif score >= -3: rec_label, rec_color, rec_icon = "מכירה",       RED, "🔴"
-    else:             rec_label, rec_color, rec_icon = "מכירה חזקה",  RED, "🔻"
-
+    # ── AI Recommendation display ─────────────────────────────────────────────
     # ── Build explanation paragraphs ──
     bullish = [(ic,lbl,det) for ic,grp,lbl,det,col,d in indicators if d > 0]
     bearish = [(ic,lbl,det) for ic,grp,lbl,det,col,d in indicators if d < 0]
@@ -2389,7 +2513,7 @@ def _stock_detail(sym: str):
             </div>
             <div style="margin-right:auto;background:{SURF2};border-radius:20px;
                         padding:3px 14px;font-size:.78rem;color:{TX2};">
-                ציון כולל: <b style="color:{rec_color};">{score:+d}</b> / 9
+                ציון כולל: <b style="color:{rec_color};">{score:+d}</b> ({len(indicators)} אינדיקטורים)
             </div>
         </div>
 
