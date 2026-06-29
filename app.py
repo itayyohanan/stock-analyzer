@@ -333,6 +333,52 @@ st.set_page_config(
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
+# GLOBAL CSS
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(f"""<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800;900&display=swap');
+#MainMenu,footer,header{{visibility:hidden;}}
+.stDeployButton{{display:none;}}
+html,body,.stApp{{background:{BG}!important;font-family:'Heebo',sans-serif!important;}}
+.block-container{{padding:1.2rem 1.8rem!important;max-width:100%!important;}}
+::-webkit-scrollbar{{width:5px;height:5px;}}
+::-webkit-scrollbar-track{{background:{SURF};}}
+::-webkit-scrollbar-thumb{{background:{BDR2};border-radius:4px;}}
+::-webkit-scrollbar-thumb:hover{{background:{CYAN};}}
+.stButton>button{{
+    border-radius:10px!important;
+    font-family:'Heebo',sans-serif!important;
+    font-weight:600!important;
+    transition:all .18s ease!important;
+    letter-spacing:.02em!important;
+}}
+.stButton>button:hover{{
+    transform:translateY(-1px)!important;
+    box-shadow:0 4px 14px rgba(0,180,216,.2)!important;
+}}
+button[kind="primary"]{{
+    background:linear-gradient(135deg,{CYAN}1a,{PUR}18)!important;
+    border:1px solid {CYAN}!important;
+    color:{CYAN}!important;
+}}
+.stTextInput>div>div>input{{
+    background:{SURF2}!important;color:{TX}!important;
+    border:1px solid {BDR}!important;border-radius:10px!important;
+    font-family:'Heebo',sans-serif!important;font-size:.92rem!important;
+    direction:rtl!important;text-align:right!important;
+}}
+.stTextInput>div>div>input:focus{{
+    border-color:{CYAN}88!important;box-shadow:0 0 0 3px {CYAN}12!important;
+}}
+.stSelectbox>div>div{{
+    background:{SURF2}!important;border:1px solid {BDR}!important;
+    border-radius:10px!important;color:{TX}!important;
+}}
+div[data-testid="stSpinner"]>div{{border-top-color:{CYAN}!important;}}
+label{{color:{TX2}!important;font-family:'Heebo',sans-serif!important;font-size:.82rem!important;}}
+</style>""", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
 # SESSION STATE
 # ══════════════════════════════════════════════════════════════════════════════
 _DEFS = {
@@ -1909,16 +1955,20 @@ def _gen_summary(df: pd.DataFrame, info: dict, sym: str) -> tuple:
     if tgt: parts.append(f"יעד מחיר ממוצע של האנליסטים: ${tgt:,.0f}")
     driver = (". ".join(parts[:2]) + ".") if parts else "אין מידע זמין על הגורמים המניעים."
 
-    # 4. Market mood
-    rsi_v = df["RSI"].iloc[-1] if "RSI" in df.columns and not pd.isna(df["RSI"].iloc[-1]) else None
-    rec   = info.get("recommendationKey", "")
-    rec_map = {"strong_buy":"קנייה חזקה","buy":"קנייה","hold":"המתנה",
-               "underperform":"ביצוע נמוך","sell":"מכירה"}
+    # 4. Market mood — factual data only, no buy/sell directives (those are in the scoring panel)
+    rsi_v      = df["RSI"].iloc[-1] if "RSI" in df.columns and not pd.isna(df["RSI"].iloc[-1]) else None
+    n_analysts = info.get("numberOfAnalystOpinions") or 0
+    tgt_price  = info.get("targetMeanPrice")
     mood_parts = []
-    if rec: mood_parts.append(f"המלצת אנליסטים: {rec_map.get(rec, rec)}")
+    if n_analysts > 0 and tgt_price:
+        upside = (tgt_price / float(close.iloc[-1]) - 1) * 100
+        arrow  = "↑" if upside >= 0 else "↓"
+        mood_parts.append(f"{n_analysts} אנליסטים עוקבים · יעד ${tgt_price:,.0f} ({arrow}{abs(upside):.0f}% מהמחיר הנוכחי)")
+    elif n_analysts > 0:
+        mood_parts.append(f"{n_analysts} אנליסטים עוקבים אחרי המניה")
     if rsi_v:
-        if   rsi_v < 30: mood_parts.append(f"RSI {rsi_v:.0f} — מכירת יתר, עשויה להתאושש")
-        elif rsi_v > 70: mood_parts.append(f"RSI {rsi_v:.0f} — קניית יתר, ייתכן תיקון")
+        if   rsi_v < 30: mood_parts.append(f"RSI {rsi_v:.0f} — מכירת יתר, לחץ מכירות קיצוני")
+        elif rsi_v > 70: mood_parts.append(f"RSI {rsi_v:.0f} — קניית יתר, מומנטום גבוה")
         else:            mood_parts.append(f"RSI {rsi_v:.0f} — אזור ניטרלי")
     mood = ". ".join(mood_parts) + "." if mood_parts else "אין מידע על סנטימנט השוק."
     return what_is, behavior, driver, mood
@@ -2005,10 +2055,10 @@ def _stock_detail(sym: str):
             det = "RSI נמוך מסמן חולשה זמנית. עבור מניות צמיחה איכותיות, ירידה לאזור זה היא לעיתים הזדמנות כניסה."
         elif rsi_val > 70:
             d = -2; ic = "📈"; lbl = f"RSI = {rsi_val:.0f}"; col = RED
-            det = "קניית יתר — מומנטום חזק אך סיכון לתיקון גבוה. שקול המתנה לתיקון לפני כניסה."
+            det = "קניית יתר — מומנטום חזק אך סיכון לתיקון גבוה."
         elif rsi_val > 60:
             d = -1; ic = "📈"; lbl = f"RSI = {rsi_val:.0f}"; col = AMB
-            det = "RSI גבוה מעיד על תנופה, אך רכישה כעת מגדילה חשיפת סיכון. עדיף לחכות להתבססות."
+            det = "RSI גבוה מעיד על תנופה — סיכון לתנודתיות בטווח הקצר."
         else:
             d = 0; ic = "➡️"; lbl = f"RSI = {rsi_val:.0f}"; col = TX2
             det = "RSI באזור נייטרלי — אין אות ברור. מומלץ לעקוב אחר פריצה מהטווח."
@@ -2116,7 +2166,7 @@ def _stock_detail(sym: str):
         if mom30 > 20:
             d = -1; col = AMB
             lbl = f"מומנטום 30י׳: +{mom30:.1f}%"
-            det = f"עלייה חדה של {mom30:.1f}% ב-30 יום — מתיחות גבוהה. כניסה כעת מגדילה סיכון לתיקון."
+            det = f"עלייה חדה של {mom30:.1f}% ב-30 יום — מתיחות גבוהה, סיכון לתיקון."
         elif mom30 > 5:
             d = +1; col = GRN
             lbl = f"מומנטום 30י׳: +{mom30:.1f}%"
@@ -2244,7 +2294,7 @@ def _stock_detail(sym: str):
             d = -1; score += d
             indicators.append(("📅", "דוח רווחים",
                 f"דוח בעוד {days_to_earn} ימים ({pd.Timestamp(earnings_dt).strftime('%d/%m/%Y')})",
-                "הדוח הרבעוני קרוב — תנודתיות גבוהה צפויה. שקול לחכות לאחרי הדוח.",
+                "הדוח הרבעוני קרוב — תנודתיות גבוהה צפויה סביב פרסום.",
                 AMB, d))
 
     # Map score → verdict
@@ -2286,11 +2336,14 @@ def _stock_detail(sym: str):
 
     mcols = st.columns(len(mc_items))
     for col, (lbl, val, vc) in zip(mcols, mc_items):
-        col.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+        is_rec = (lbl == "המלצה")
+        border = f"1px solid {vc}88" if is_rec else f"1px solid {BDR}"
+        shadow = f"0 0 12px {vc}22" if is_rec else "none"
+        col.markdown(f"""<div style="background:{SURF2};border:{border};
             border-radius:10px;padding:10px 8px;text-align:center;direction:rtl;
-            margin-bottom:4px;">
+            margin-bottom:4px;box-shadow:{shadow};transition:all .15s;">
             <div style="font-size:.68rem;color:{TX3};margin-bottom:4px;">{lbl}</div>
-            <div style="font-size:.92rem;font-weight:700;color:{vc};">{val}</div>
+            <div style="font-size:.92rem;font-weight:{'800' if is_rec else '700'};color:{vc};">{val}</div>
         </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
@@ -2298,8 +2351,11 @@ def _stock_detail(sym: str):
     # ── "מה המניה עושה?" summary ──────────────────────────────────────────────
     what_is, behavior, driver, mood = _gen_summary(df, info, sym)
     st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-        border-radius:12px;padding:16px 20px;margin-bottom:14px;direction:rtl;">
-        <div style="font-size:.9rem;font-weight:700;color:{TX};margin-bottom:12px;">
+        border-radius:12px;padding:16px 20px;margin-bottom:14px;direction:rtl;
+        box-shadow:0 2px 12px rgba(0,0,0,.3);">
+        <div style="font-size:.9rem;font-weight:800;margin-bottom:12px;
+            background:linear-gradient(135deg,{TX} 50%,{CYAN});
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
             📋 מה המניה עושה?
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -2501,28 +2557,52 @@ def _stock_detail(sym: str):
                     "אל תלחם במגמה. המתן לאישורים טכניים ברורים (פריצת MA50, RSI נמוך) "
                     "לפני כניסה מחדש.")
 
+    # Score gauge bar
+    _score_pct = max(0.0, min(100.0, (max(-10, min(10, score)) + 10) / 20 * 100))
+    _score_bar = (
+        f"<div style='margin:16px 0 12px;'>"
+        f"<div style='position:relative;"
+        f"background:linear-gradient(90deg,{RED}dd 0%,{AMB}99 42%,{AMB}99 58%,{GRN}dd 100%);"
+        f"height:8px;border-radius:8px;'>"
+        f"<div style='position:absolute;top:50%;left:{_score_pct:.1f}%;transform:translate(-50%,-50%);"
+        f"width:18px;height:18px;border-radius:50%;"
+        f"background:{rec_color};border:2.5px solid {BG};"
+        f"box-shadow:0 0 10px {rec_color}99;'></div>"
+        f"</div>"
+        f"<div style='display:flex;justify-content:space-between;font-size:.62rem;color:{TX3};margin-top:6px;'>"
+        f"<span>מכירה חזקה (−10)</span>"
+        f"<span style='color:{TX2};'>ניטרלי (0)</span>"
+        f"<span>קנייה חזקה (+10)</span>"
+        f"</div></div>"
+    )
+
     st.html(f"""
     <div style="background:{BG};border:2px solid {rec_color};border-radius:16px;
-        padding:22px 26px;margin-top:20px;direction:rtl;">
+        padding:22px 26px;margin-top:20px;direction:rtl;
+        box-shadow:0 4px 24px {rec_color}22;">
 
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;
                     padding-bottom:16px;border-bottom:1px solid {BDR2};">
             <div style="font-size:.78rem;color:{TX2};font-weight:600;">המלצת מערכת:</div>
-            <div style="font-size:1.7rem;font-weight:900;color:{rec_color};letter-spacing:1px;">
+            <div style="font-size:1.8rem;font-weight:900;color:{rec_color};letter-spacing:1px;
+                        text-shadow:0 0 20px {rec_color}55;">
                 {rec_icon}&nbsp;{rec_label}
             </div>
             <div style="margin-right:auto;background:{SURF2};border-radius:20px;
                         padding:3px 14px;font-size:.78rem;color:{TX2};">
-                ציון כולל: <b style="color:{rec_color};">{score:+d}</b> ({len(indicators)} אינדיקטורים)
+                ציון: <b style="color:{rec_color};">{score:+d}</b> · {len(indicators)} אינדיקטורים
             </div>
         </div>
 
+        {_score_bar}
+
         {"<div style='margin-top:14px;'><div style='font-size:.78rem;font-weight:700;color:"+GRN+";margin-bottom:6px;'>✅ גורמים תומכים (" + str(len(bullish)) + ")</div>" + bull_html + "</div>" if bullish else ""}
-        {"<div style='margin-top:12px;'><div style='font-size:.78rem;font-weight:700;color:"+RED+";margin-bottom:6px;'>❌ גורמים נגד (" + str(len(bearish)) + ")</div>" + bear_html + "</div>" if bearish else ""}
+        {"<div style='margin-top:12px;'><div style='font-size:.78rem;font-weight:700;color:"+RED+";margin-bottom:6px;'>❌ גורמים נגד (" + str(len(bearish)) + ") — <span style='font-weight:400;font-size:.72rem;opacity:.75;'>נלקחו בחשבון בציון</span></div>" + bear_html + "</div>" if bearish else ""}
         {"<div style='margin-top:12px;'><div style='font-size:.78rem;font-weight:700;color:"+TX3+";margin-bottom:6px;'>⬜ נייטרלי (" + str(len(neutral)) + ")</div>" + neut_html + "</div>" if neutral else ""}
 
         <div style="background:{SURF2};border-radius:10px;padding:12px 16px;
-                    margin-top:16px;font-size:.79rem;color:{TX2};line-height:1.65;">
+                    margin-top:16px;font-size:.79rem;color:{TX2};line-height:1.65;
+                    border-right:3px solid {rec_color}66;">
             {risk_msg}
         </div>
 
@@ -2585,25 +2665,30 @@ def _stock_detail(sym: str):
     watch_section = (
         f"<div style='margin-bottom:16px;'>"
         f"<div style='font-size:.8rem;color:{TX3};font-weight:700;margin-bottom:8px;'>"
-        f"⚠️ מה לשים לב אליו:</div>"
+        f"⚠️ גורמי סיכון שנלקחו בחשבון בציון:</div>"
         f"<ul style='margin:0;padding-right:20px;font-size:.82rem;line-height:1.8;'>"
         f"{watch_bullets}</ul></div>"
     ) if watch_bullets else ""
 
     st.html(f"""
     <div style="background:{SURF};border:2px solid {CYAN}44;border-radius:16px;
-        padding:22px 26px;margin-top:16px;direction:rtl;">
+        padding:22px 26px;margin-top:16px;direction:rtl;
+        box-shadow:0 4px 24px rgba(0,180,216,.08);">
 
-        <div style="font-size:1rem;font-weight:800;color:{TX};margin-bottom:16px;
-                    border-bottom:1px solid {BDR};padding-bottom:12px;">
+        <div style="font-size:1rem;font-weight:800;margin-bottom:16px;
+                    border-bottom:1px solid {BDR};padding-bottom:12px;
+                    background:linear-gradient(135deg,{TX} 60%,{CYAN});
+                    -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
             💬 השורה התחתונה — מה זה אומר לי?
         </div>
 
-        <div style="margin-bottom:18px;">
-            <div style="font-size:.8rem;color:{TX3};font-weight:700;margin-bottom:8px;">
+        <div style="margin-bottom:18px;background:{BG};border-radius:12px;
+                    padding:14px 18px;border-right:4px solid {action_color};">
+            <div style="font-size:.75rem;color:{TX3};font-weight:700;margin-bottom:6px;">
                 האם לקנות את {sym} עכשיו?
             </div>
-            <div style="font-size:1.1rem;font-weight:800;color:{action_color};line-height:1.5;">
+            <div style="font-size:1.15rem;font-weight:900;color:{action_color};line-height:1.5;
+                        text-shadow:0 0 16px {action_color}44;">
                 {action_str}
             </div>
         </div>
