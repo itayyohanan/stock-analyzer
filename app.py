@@ -62,7 +62,8 @@ HOT = [
 ]
 
 PF_FILE = "portfolio.json"
-WL_FILE = "watchlist.json"
+WL_FILE     = "watchlist.json"
+ALERTS_FILE = "alerts.json"
 
 # ── Deep-scan universe: 100+ stocks with Hebrew metadata ──────────────────────
 # Fields: t=ticker, n=name, s=sector(Hebrew), d=description(Hebrew), u=why-under-radar
@@ -401,6 +402,9 @@ _DEFS = {
     "demo2_frame":       0,
     "demo2_strategy":    "📊 RSI קלאסי",
     "demo2_scenario":    None,
+    # Screener
+    "sc_results":        None,
+    "sc_running":        False,
 }
 for _k, _v in _DEFS.items():
     if _k not in st.session_state:
@@ -1863,13 +1867,14 @@ def _nav():
                 unsafe_allow_html=True)
     else:
         # ── Desktop navigation: button row ────────────────────────────────────
-        _, b1, b2, b3, b4, b5, b6, b7, b8, b9 = st.columns([0.8, 1, 1, 1, 1, 1, 1, 1, 1, 0.45])
+        _, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11 = st.columns(
+            [0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.4])
         with b1:
             if st.button("🏠 ראשי", key="nb_home", use_container_width=True,
                          type="primary" if p == "home" else "secondary"):
                 st.session_state["page"] = "home"; st.rerun()
         with b2:
-            if st.button("💼 התיק שלי", key="nb_pf", use_container_width=True,
+            if st.button("💼 תיק", key="nb_pf", use_container_width=True,
                          type="primary" if p == "portfolio" else "secondary"):
                 st.session_state["page"] = "portfolio"; st.rerun()
         with b3:
@@ -1877,28 +1882,35 @@ def _nav():
                          type="primary" if p == "watchlist" else "secondary"):
                 st.session_state["page"] = "watchlist"; st.rerun()
         with b4:
+            if st.button("🔍 סורק", key="nb_sc", use_container_width=True,
+                         type="primary" if p == "screener" else "secondary"):
+                st.session_state["page"] = "screener"; st.rerun()
+        with b5:
+            if st.button("📅 דוחות", key="nb_earn", use_container_width=True,
+                         type="primary" if p == "earnings" else "secondary"):
+                st.session_state["page"] = "earnings"; st.rerun()
+        with b6:
+            if st.button("🔔 התראות", key="nb_al", use_container_width=True,
+                         type="primary" if p == "alerts" else "secondary"):
+                st.session_state["page"] = "alerts"; st.rerun()
+        with b7:
             if st.button("⚖️ השוואה", key="nb_cmp", use_container_width=True,
                          type="primary" if p == "compare" else "secondary"):
                 st.session_state["page"] = "compare"; st.rerun()
-        with b5:
-            _dlbl = "🎮 דמו 🟢" if st.session_state.get("demo2_state") == "animating" else "🎮 דמו"
-            if st.button(_dlbl, key="nb_demo", use_container_width=True,
-                         type="primary" if p == "demo" else "secondary"):
-                st.session_state["page"] = "demo"; st.rerun()
-        with b6:
-            if st.button("📰 עדכוני שוק", key="nb_news", use_container_width=True,
+        with b8:
+            if st.button("📰 חדשות", key="nb_news", use_container_width=True,
                          type="primary" if p == "news" else "secondary"):
                 st.session_state["page"] = "news"; st.rerun()
-        with b7:
+        with b9:
             _ag_lbl = f"🤖 סוכנים 🔴{_uc}" if _uc > 0 else "🤖 סוכנים"
             if st.button(_ag_lbl, key="nb_agents", use_container_width=True,
                          type="primary" if p == "agents" else "secondary"):
                 st.session_state["page"] = "agents"; st.rerun()
-        with b8:
+        with b10:
             if st.button("📚 למד", key="nb_learn", use_container_width=True,
                          type="primary" if p == "learn" else "secondary"):
                 st.session_state["page"] = "learn"; st.rerun()
-        with b9:
+        with b11:
             if st.button("📱", key="nb_mob", use_container_width=True,
                          help="החלף למצב נייד"):
                 st.session_state["mobile_mode"] = True; st.rerun()
@@ -2877,6 +2889,112 @@ def page_home():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PORTFOLIO ANALYTICS — P&L chart + sector pie
+# ══════════════════════════════════════════════════════════════════════════════
+def _portfolio_analytics(portfolio: list, pf_quotes: dict):
+    if not portfolio:
+        return
+
+    st.markdown(f"""<div style="margin-top:28px;border-top:1px solid {BDR};
+        padding-top:22px;direction:rtl;">
+        <div style="font-size:1rem;font-weight:800;margin-bottom:16px;
+            background:linear-gradient(135deg,{TX} 50%,{CYAN});
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+            📊 ניתוח ביצועים
+        </div></div>""", unsafe_allow_html=True)
+
+    all_syms = list({h["sym"] for h in portfolio}) + ["SPY"]
+
+    with st.spinner("מחשב ביצועי תיק..."):
+        hist: dict = {}
+        def _fetch_sym(sym):
+            try:    return sym, fetch_history(sym, "1y")
+            except: return sym, pd.DataFrame()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+            for sym, df in ex.map(_fetch_sym, all_syms):
+                if not df.empty:
+                    hist[sym] = df
+
+    # Build combined daily portfolio value
+    portfolio_series: dict = {}
+    for h in portfolio:
+        sym      = h["sym"]
+        shares   = h["shares"]
+        buy_date = pd.Timestamp(h.get("buy_date", "2020-01-01"))
+        if sym not in hist:
+            continue
+        df = hist[sym]
+        df = df[df.index >= buy_date]
+        for date, row in df.iterrows():
+            d = date.date()
+            portfolio_series[d] = portfolio_series.get(d, 0) + float(row["Close"]) * shares
+
+    if not portfolio_series:
+        return
+
+    dates   = sorted(portfolio_series.keys())
+    pf_vals = [portfolio_series[d] for d in dates]
+    pf_pct  = [(v / pf_vals[0] - 1) * 100 for v in pf_vals]
+    pf_color = GRN if pf_pct[-1] >= 0 else RED
+
+    col_chart, col_pie = st.columns([2.2, 1])
+
+    with col_chart:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=dates, y=pf_pct, name="התיק שלי",
+            line=dict(color=pf_color, width=2.5),
+            fill="tozeroy", fillcolor=f"rgba({'34,197,94' if pf_pct[-1]>=0 else '239,68,68'},0.07)",
+        ))
+        spy_df = hist.get("SPY")
+        if spy_df is not None and not spy_df.empty:
+            spy_from = spy_df[spy_df.index >= pd.Timestamp(dates[0])]
+            if not spy_from.empty:
+                spy_v   = spy_from["Close"].tolist()
+                spy_pct = [(v / spy_v[0] - 1) * 100 for v in spy_v]
+                fig.add_trace(go.Scatter(
+                    x=[d.date() for d in spy_from.index], y=spy_pct,
+                    name="S&P 500", line=dict(color=TX3, width=1.5, dash="dot"),
+                ))
+        fig.add_hline(y=0, line=dict(color=BDR2, dash="dot", width=1))
+        fig.update_layout(
+            **{**PB, "height": 290},
+            yaxis_ticksuffix="%", yaxis_title="תשואה",
+            title=dict(text="ביצועי תיק מול S&P 500", font=dict(color=TX, size=13), x=0),
+            xaxis_rangeslider_visible=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_pie:
+        sector_map = {s["t"]: s.get("s", s.get("c", "אחר")) for s in DEEP_SCAN_UNIVERSE}
+        for h in HOT:
+            sector_map.setdefault(h["t"], h.get("c", "Tech"))
+        sectors: dict = {}
+        for h in portfolio:
+            sym = h["sym"]
+            q   = pf_quotes.get(sym, {})
+            cur = float(q.get("price") or h["buy_price"]) * h["shares"]
+            sec = sector_map.get(sym, sym)
+            sectors[sec] = sectors.get(sec, 0) + cur
+        colors = [CYAN, PUR, GRN, AMB, RED, "#60a5fa", "#f472b6", TX2]
+        fig2 = go.Figure(go.Pie(
+            labels=list(sectors.keys()), values=list(sectors.values()),
+            hole=0.5, textinfo="percent",
+            textfont=dict(color=TX, size=10),
+            marker=dict(colors=colors[:len(sectors)], line=dict(color=BG, width=2)),
+            hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<extra></extra>",
+        ))
+        fig2.update_layout(
+            **{**PB, "height": 290},
+            showlegend=True,
+            legend=dict(font=dict(size=9, color=TX2), orientation="v",
+                        yanchor="middle", y=0.5, xanchor="left", x=1.02),
+            title=dict(text="פילוח סקטוריאלי", font=dict(color=TX, size=13), x=0),
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE: PORTFOLIO — התיק שלי
 # ══════════════════════════════════════════════════════════════════════════════
 def page_portfolio():
@@ -3040,6 +3158,8 @@ def page_portfolio():
                 <div style="font-size:.78rem;color:{TX2};margin-bottom:6px;">{lbl}</div>
                 <div style="font-size:1.35rem;font-weight:800;color:{vc};">{val}</div>
             </div>""", unsafe_allow_html=True)
+
+        _portfolio_analytics(portfolio, pf_quotes)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -4965,6 +5085,297 @@ def _live_bar():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PAGE: SCREENER — סורק טכני
+# ══════════════════════════════════════════════════════════════════════════════
+def page_screener():
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
+        <div style="font-size:1.6rem;font-weight:900;
+            background:linear-gradient(135deg,{TX} 30%,{CYAN} 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+            🔍 סורק טכני
+        </div>
+        <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
+            סנן {len(DEEP_SCAN_UNIVERSE)} מניות לפי קריטריונים טכניים בזמן אמת
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    fc1, fc2, fc3, fc4 = st.columns(4)
+    with fc1:
+        rsi_min, rsi_max = st.slider("טווח RSI", 0, 100, (0, 45), key="sc_rsi")
+    with fc2:
+        ma_filter = st.selectbox("מול MA50", ["הכל", "מעל MA50", "מתחת MA50"], key="sc_ma")
+    with fc3:
+        all_sectors = ["הכל"] + sorted({s.get("s", s.get("c", "אחר")) for s in DEEP_SCAN_UNIVERSE})
+        sector_filter = st.selectbox("סקטור", all_sectors, key="sc_sec")
+    with fc4:
+        sort_by = st.selectbox("מיין לפי", ["RSI נמוך → גבוה", "RSI גבוה → נמוך", "שינוי יומי"], key="sc_sort")
+
+    run_col, _ = st.columns([1, 4])
+    with run_col:
+        if st.button("🔍 הרץ סריקה", key="sc_run", type="primary", use_container_width=True):
+            st.session_state["sc_results"] = None
+            st.session_state["sc_running"] = True
+            st.rerun()
+
+    if not st.session_state.get("sc_running") and st.session_state.get("sc_results") is None:
+        st.markdown(f"""<div style="text-align:center;padding:60px 0;color:{TX2};direction:rtl;">
+            <div style="font-size:3rem;margin-bottom:12px;">🔍</div>
+            <div style="font-size:.95rem;">הגדר פילטרים ולחץ "הרץ סריקה"</div>
+        </div>""", unsafe_allow_html=True)
+        return
+
+    candidates = [s for s in DEEP_SCAN_UNIVERSE
+                  if sector_filter == "הכל" or s.get("s", s.get("c", "")) == sector_filter]
+
+    if st.session_state.get("sc_running"):
+        with st.spinner(f"סורק {len(candidates)} מניות בזמן אמת..."):
+            def _scan_one(stock):
+                try:
+                    q = _agent_quote(stock["t"])
+                    if not q or q.get("rsi") is None:
+                        return None
+                    rsi   = q["rsi"]
+                    price = q.get("price", 0)
+                    ma50  = q.get("ma50")
+                    if not (rsi_min <= rsi <= rsi_max):
+                        return None
+                    if ma_filter == "מעל MA50" and (not ma50 or price < ma50):
+                        return None
+                    if ma_filter == "מתחת MA50" and (not ma50 or price >= ma50):
+                        return None
+                    return {**stock, **q}
+                except Exception:
+                    return None
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=14) as ex:
+                raw = list(ex.map(_scan_one, candidates))
+            st.session_state["sc_results"] = [r for r in raw if r]
+            st.session_state["sc_running"]  = False
+            st.rerun()
+
+    results = st.session_state.get("sc_results") or []
+    if not results:
+        st.warning("לא נמצאו מניות התואמות את הפילטרים. נסה להרחיב את הקריטריונים.")
+        return
+
+    if sort_by == "RSI נמוך → גבוה":
+        results = sorted(results, key=lambda x: x.get("rsi", 99))
+    elif sort_by == "RSI גבוה → נמוך":
+        results = sorted(results, key=lambda x: x.get("rsi", 0), reverse=True)
+    else:
+        results = sorted(results, key=lambda x: x.get("chg", 0), reverse=True)
+
+    st.markdown(f"""<div style="color:{GRN};font-size:.85rem;direction:rtl;margin-bottom:14px;">
+        ✅ נמצאו <b>{len(results)}</b> מניות
+    </div>""", unsafe_allow_html=True)
+
+    cols = st.columns(3)
+    for i, r in enumerate(results):
+        with cols[i % 3]:
+            rsi_v = r.get("rsi", 50)
+            price = r.get("price", 0)
+            chg   = r.get("chg", 0)
+            ma50  = r.get("ma50")
+            chg_c = GRN if chg >= 0 else RED
+            rsi_c = GRN if rsi_v < 35 else AMB if rsi_v < 60 else RED
+            above_ma = ma50 and price > ma50
+
+            st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+                border-radius:14px;padding:16px;margin-bottom:12px;direction:rtl;
+                border-top:3px solid {rsi_c};">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                        <div style="font-size:1.1rem;font-weight:800;color:{CYAN};">{r['t']}</div>
+                        <div style="font-size:.75rem;color:{TX2};margin-top:2px;">{r.get('n','')}</div>
+                        <div style="font-size:.66rem;color:{TX3};margin-top:4px;
+                            background:{SURF};border-radius:6px;padding:2px 7px;display:inline-block;">
+                            {r.get('s', r.get('c',''))}
+                        </div>
+                    </div>
+                    <div style="text-align:left;">
+                        <div style="font-size:1rem;font-weight:700;color:{TX};">${price:,.2f}</div>
+                        <div style="font-size:.78rem;color:{chg_c};">{'▲' if chg>=0 else '▼'} {abs(chg):.1f}%</div>
+                    </div>
+                </div>
+                <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <div style="background:{rsi_c}22;border:1px solid {rsi_c}55;
+                        border-radius:8px;padding:4px 10px;font-size:.76rem;">
+                        <span style="color:{TX3};">RSI </span>
+                        <span style="color:{rsi_c};font-weight:700;">{rsi_v:.0f}</span>
+                    </div>
+                    <div style="background:{''+GRN+'22;border:1px solid '+GRN+'44;color:'+GRN if above_ma else RED+'22;border:1px solid '+RED+'44;color:'+RED};
+                        border-radius:8px;padding:4px 10px;font-size:.74rem;">
+                        {'מעל MA50' if above_ma else 'מתחת MA50'}
+                    </div>
+                </div>
+                {'<div style="margin-top:8px;font-size:.74rem;color:'+TX2+';line-height:1.5;">'+r.get("u","")[:90]+'</div>' if r.get("u") else ""}
+            </div>""", unsafe_allow_html=True)
+
+            if st.button(f"📊 נתח {r['t']}", key=f"sc_go_{r['t']}_{i}",
+                         use_container_width=True):
+                st.session_state["search_ticker"] = r["t"]
+                st.session_state["page"] = "home"
+                st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: EARNINGS CALENDAR — לוח שנה רווחים
+# ══════════════════════════════════════════════════════════════════════════════
+def page_earnings():
+    portfolio  = load_json(PF_FILE)
+    watchlist  = load_json(WL_FILE)
+    pf_syms    = [h["sym"] for h in portfolio]
+    all_syms   = list(dict.fromkeys(pf_syms + watchlist))
+
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
+        <div style="font-size:1.6rem;font-weight:900;
+            background:linear-gradient(135deg,{TX} 30%,{AMB} 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+            📅 לוח שנה — דוחות רווחים
+        </div>
+        <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
+            דוחות רבעוניים קרובים עבור התיק ורשימת המעקב שלך
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    if not all_syms:
+        st.info("הוסף מניות לתיק או לרשימת המעקב כדי לראות דוחות קרובים.")
+        return
+
+    with st.spinner("מביא תאריכי דוחות..."):
+        upcoming = []
+        def _get_earn(sym):
+            try:
+                cal = fetch_calendar(sym)
+                dt  = cal.get("earnings_date")
+                if dt:
+                    days = (pd.Timestamp(dt) - pd.Timestamp(datetime.now())).days
+                    return {"sym": sym, "date": dt, "days": days,
+                            "in_pf": sym in pf_syms}
+            except Exception:
+                pass
+            return None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+            for r in ex.map(_get_earn, all_syms):
+                if r and r["days"] >= -7:
+                    upcoming.append(r)
+
+    upcoming = sorted(upcoming, key=lambda x: x["days"])
+
+    if not upcoming:
+        st.markdown(f"""<div style="text-align:center;padding:50px;color:{TX2};">
+            <div style="font-size:2.5rem;">📭</div>
+            <div style="margin-top:10px;">לא נמצאו דוחות קרובים (עד 90 ימים)</div>
+        </div>""", unsafe_allow_html=True)
+        return
+
+    for r in upcoming:
+        sym    = r["sym"]
+        days   = r["days"]
+        dt_str = pd.Timestamp(r["date"]).strftime("%d/%m/%Y")
+        if days < 0:
+            label, bc = f"לפני {abs(days)} ימים", TX3
+        elif days == 0:
+            label, bc = "היום! 🔥", RED
+        elif days <= 7:
+            label, bc = f"בעוד {days} ימים", RED
+        elif days <= 30:
+            label, bc = f"בעוד {days} ימים", AMB
+        else:
+            label, bc = f"בעוד {days} ימים", TX2
+
+        tag = f"<span style='background:{CYAN}22;color:{CYAN};border-radius:6px;padding:1px 7px;font-size:.68rem;margin-right:6px;'>תיק</span>" if r["in_pf"] else ""
+
+        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+            border-radius:12px;padding:14px 18px;margin-bottom:8px;direction:rtl;
+            display:flex;align-items:center;justify-content:space-between;
+            border-right:4px solid {bc};">
+            <div>
+                {tag}
+                <span style="font-size:1rem;font-weight:700;color:{CYAN};">{sym}</span>
+                <span style="font-size:.8rem;color:{TX2};margin-right:10px;">{dt_str}</span>
+            </div>
+            <div style="font-size:.85rem;font-weight:700;color:{bc};">{label}</div>
+        </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: PRICE ALERTS — התראות מחיר
+# ══════════════════════════════════════════════════════════════════════════════
+def page_alerts():
+    watchlist = load_json(WL_FILE)
+    portfolio = load_json(PF_FILE)
+    pf_syms   = [h["sym"] for h in portfolio]
+    all_syms  = list(dict.fromkeys(pf_syms + watchlist))
+    alerts    = load_json(ALERTS_FILE) if os.path.exists(ALERTS_FILE) else {}
+    if isinstance(alerts, list):
+        alerts = {}
+
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
+        <div style="font-size:1.6rem;font-weight:900;
+            background:linear-gradient(135deg,{TX} 30%,{RED} 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+            🔔 התראות מחיר
+        </div>
+        <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
+            קבל התראה כשמניה חוצה יעד מחיר
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    if not all_syms:
+        st.info("הוסף מניות לתיק או לרשימת המעקב כדי להגדיר התראות.")
+        return
+
+    changed = False
+    for sym in all_syms:
+        sym_alerts = alerts.get(sym, {})
+        price_now  = fast_price(sym) or 0
+        tag = "📂 תיק" if sym in pf_syms else "👁️ מעקב"
+
+        with st.expander(f"{tag}  {sym}  —  ${price_now:,.2f} כרגע"):
+            ac1, ac2, ac3 = st.columns([1, 1, 0.6])
+            with ac1:
+                above = st.number_input(
+                    "התראה כש**מחיר עולה מעל** ($)",
+                    value=float(sym_alerts.get("above") or 0),
+                    min_value=0.0, step=1.0, key=f"al_above_{sym}")
+            with ac2:
+                below = st.number_input(
+                    "התראה כש**מחיר יורד מתחת** ($)",
+                    value=float(sym_alerts.get("below") or 0),
+                    min_value=0.0, step=1.0, key=f"al_below_{sym}")
+            with ac3:
+                st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
+                if st.button("שמור ✓", key=f"al_save_{sym}", type="primary",
+                             use_container_width=True):
+                    alerts[sym] = {}
+                    if above > 0:
+                        alerts[sym]["above"] = above
+                    if below > 0:
+                        alerts[sym]["below"] = below
+                    save_json(ALERTS_FILE, alerts)
+                    st.success(f"התראות עבור {sym} נשמרו!")
+                    changed = True
+
+            # Show active alerts
+            if sym_alerts:
+                parts = []
+                if sym_alerts.get("above"):
+                    hit = price_now >= sym_alerts["above"]
+                    c   = GRN if hit else TX3
+                    parts.append(f"<span style='color:{c};'>↑ מעל ${sym_alerts['above']:,.0f}{'  ✅ הופעל!' if hit else ''}</span>")
+                if sym_alerts.get("below"):
+                    hit = price_now > 0 and price_now <= sym_alerts["below"]
+                    c   = RED if hit else TX3
+                    parts.append(f"<span style='color:{c};'>↓ מתחת ל-${sym_alerts['below']:,.0f}{'  🔴 הופעל!' if hit else ''}</span>")
+                if parts:
+                    st.markdown(f"<div style='font-size:.8rem;margin-top:6px;direction:rtl;'>"
+                                f"התראות פעילות: {'  ·  '.join(parts)}</div>",
+                                unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ROUTER
 # ══════════════════════════════════════════════════════════════════════════════
 _ensure_agents()
@@ -4975,6 +5386,9 @@ _page = st.session_state["page"]
 if   _page == "home":      page_home()
 elif _page == "portfolio": page_portfolio()
 elif _page == "watchlist": page_watchlist()
+elif _page == "screener":  page_screener()
+elif _page == "earnings":  page_earnings()
+elif _page == "alerts":    page_alerts()
 elif _page == "compare":   page_compare()
 elif _page == "demo":      page_demo()
 elif _page == "news":      page_news()
