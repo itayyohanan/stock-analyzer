@@ -10,11 +10,11 @@ from streamlit_autorefresh import st_autorefresh
 # ══════════════════════════════════════════════════════════════════════════════
 # CONSTANTS
 # ══════════════════════════════════════════════════════════════════════════════
-BG   = "#060d1a"; SURF  = "#0c1828"; SURF2 = "#112035"; SURF3 = "#162843"
-BDR  = "#1b3050"; BDR2  = "#24446e"
+BG   = "#02070f"; SURF  = "#06101c"; SURF2 = "#091522"; SURF3 = "#0c1c30"
+BDR  = "#111e2e"; BDR2  = "#182b40"
 CYAN = "#00b4d8"; GRN   = "#22c55e"; RED   = "#ef4444"
 AMB  = "#f59e0b"; PUR   = "#a78bfa"
-TX   = "#e8f4fd"; TX2   = "#6b9bc0"; TX3   = "#3a6080"
+TX   = "#ddeeff"; TX2   = "#4d7a9a"; TX3   = "#253d52"
 
 PB = dict(
     plot_bgcolor=SURF, paper_bgcolor=SURF,
@@ -320,11 +320,11 @@ def _show_login() -> bool:
         background:{CYAN}22!important;border:1px solid {CYAN}!important;
         color:{CYAN}!important;font-family:'Heebo',sans-serif!important;
         font-size:1rem!important;font-weight:700!important;
-        border-radius:10px!important;padding:10px!important;
+        border-radius:6px!important;padding:10px!important;
     }}
     .stTextInput>div>div>input{{
         background:{SURF2}!important;color:{TX}!important;
-        border:1px solid {BDR}!important;border-radius:10px!important;
+        border:1px solid {BDR}!important;border-radius:6px!important;
         font-family:'Heebo',sans-serif!important;font-size:.95rem!important;
         text-align:right!important;direction:rtl!important;
     }}
@@ -348,7 +348,7 @@ def _show_login() -> bool:
         </div>""", unsafe_allow_html=True)
 
         st.markdown(f"""<div style="background:{SURF};border:1px solid {BDR};
-            border-radius:16px;padding:28px 32px;direction:rtl;">
+            border-radius:8px;padding:28px 32px;direction:rtl;">
             <div style="font-size:1rem;font-weight:700;color:{TX};
                         margin-bottom:20px;text-align:center;">
                 🔐 כניסה למערכת
@@ -402,48 +402,46 @@ html,body,.stApp{{
     color:{TX}!important;
 }}
 .block-container{{
-    padding:1.4rem 2rem!important;
+    padding:1.2rem 1.8rem!important;
     max-width:100%!important;
 }}
 
 /* ── Scrollbar ─────────────────────────────────────────────────────────── */
-::-webkit-scrollbar{{width:4px;height:4px;}}
+::-webkit-scrollbar{{width:3px;height:3px;}}
 ::-webkit-scrollbar-track{{background:transparent;}}
-::-webkit-scrollbar-thumb{{background:{BDR};border-radius:6px;}}
-::-webkit-scrollbar-thumb:hover{{background:{CYAN}88;}}
+::-webkit-scrollbar-thumb{{background:{BDR2};border-radius:2px;}}
+::-webkit-scrollbar-thumb:hover{{background:{CYAN}66;}}
 
 /* ── Buttons ───────────────────────────────────────────────────────────── */
 .stButton>button{{
-    border-radius:10px!important;
+    border-radius:6px!important;
     font-family:'Heebo',sans-serif!important;
     font-weight:600!important;
     font-size:.82rem!important;
-    padding:.38rem .85rem!important;
-    transition:all .2s cubic-bezier(.4,0,.2,1)!important;
-    border:1px solid {BDR}!important;
+    padding:.36rem .8rem!important;
+    transition:border-color .15s,color .15s!important;
+    border:1px solid {BDR2}!important;
     background:{SURF}!important;
     color:{TX2}!important;
     letter-spacing:.01em!important;
     box-shadow:none!important;
 }}
 .stButton>button:hover{{
-    transform:translateY(-1px)!important;
-    border-color:{CYAN}88!important;
+    border-color:{CYAN}!important;
     color:{CYAN}!important;
-    background:rgba(0,180,216,.05)!important;
-    box-shadow:0 4px 18px rgba(0,180,216,.1)!important;
+    background:{SURF}!important;
+    box-shadow:none!important;
 }}
 button[kind="primary"]{{
-    background:linear-gradient(135deg,rgba(0,180,216,.12),rgba(167,139,250,.08))!important;
-    border:1px solid {CYAN}!important;
+    background:{SURF2}!important;
+    border:1px solid {CYAN}88!important;
     color:{CYAN}!important;
-    box-shadow:0 0 16px rgba(0,180,216,.08)!important;
+    box-shadow:none!important;
 }}
 button[kind="primary"]:hover{{
-    background:linear-gradient(135deg,rgba(0,180,216,.2),rgba(167,139,250,.14))!important;
-    box-shadow:0 4px 20px rgba(0,180,216,.2)!important;
     border-color:{CYAN}!important;
     color:{TX}!important;
+    background:{SURF2}!important;
 }}
 
 /* ── Inputs ────────────────────────────────────────────────────────────── */
@@ -451,54 +449,57 @@ button[kind="primary"]:hover{{
 .stNumberInput>div>div>input{{
     background:{SURF}!important;
     color:{TX}!important;
-    border:1px solid {BDR}!important;
-    border-radius:10px!important;
+    border:1px solid {BDR2}!important;
+    border-radius:6px!important;
     font-family:'Heebo',sans-serif!important;
-    font-size:.9rem!important;
-    transition:all .2s!important;
+    font-size:.88rem!important;
+    transition:border-color .15s!important;
     direction:rtl!important;
     text-align:right!important;
-    padding:.5rem .85rem!important;
+    padding:.45rem .85rem!important;
 }}
 .stTextInput>div>div>input:focus,
 .stNumberInput>div>div>input:focus{{
     border-color:{CYAN}!important;
-    box-shadow:0 0 0 3px rgba(0,180,216,.1)!important;
+    box-shadow:none!important;
     outline:none!important;
 }}
 .stSelectbox>div>div{{
     background:{SURF}!important;
-    border:1px solid {BDR}!important;
-    border-radius:10px!important;
+    border:1px solid {BDR2}!important;
+    border-radius:6px!important;
     color:{TX}!important;
     font-family:'Heebo',sans-serif!important;
-    transition:all .2s!important;
 }}
-.stSelectbox>div>div:hover{{border-color:{CYAN}88!important;}}
+.stSelectbox>div>div:hover{{border-color:{CYAN}66!important;}}
 
 /* ── Tabs ──────────────────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"]{{
-    background:{SURF}!important;
-    border-radius:12px!important;
-    padding:4px!important;
-    gap:3px!important;
-    border:1px solid {BDR}!important;
+    background:transparent!important;
+    border-radius:0!important;
+    padding:0!important;
+    gap:0!important;
+    border:none!important;
+    border-bottom:1px solid {BDR2}!important;
 }}
 .stTabs [data-baseweb="tab"]{{
-    border-radius:8px!important;
+    border-radius:0!important;
     color:{TX2}!important;
     font-family:'Heebo',sans-serif!important;
     font-weight:600!important;
-    font-size:.84rem!important;
-    padding:.35rem 1.1rem!important;
-    transition:all .2s!important;
+    font-size:.85rem!important;
+    padding:.45rem 1.2rem!important;
+    transition:color .15s!important;
     border:none!important;
     background:transparent!important;
+    border-bottom:2px solid transparent!important;
+    margin-bottom:-1px!important;
 }}
 .stTabs [aria-selected="true"]{{
-    background:linear-gradient(135deg,rgba(0,180,216,.14),rgba(167,139,250,.1))!important;
+    background:transparent!important;
     color:{CYAN}!important;
-    box-shadow:0 2px 10px rgba(0,180,216,.12)!important;
+    border-bottom:2px solid {CYAN}!important;
+    box-shadow:none!important;
 }}
 .stTabs [data-baseweb="tab-border"]{{display:none!important;}}
 .stTabs [data-baseweb="tab-highlight"]{{display:none!important;}}
@@ -506,23 +507,23 @@ button[kind="primary"]:hover{{
 /* ── Expander ──────────────────────────────────────────────────────────── */
 .streamlit-expanderHeader{{
     background:{SURF}!important;
-    border:1px solid {BDR}!important;
-    border-radius:10px!important;
+    border:1px solid {BDR2}!important;
+    border-radius:6px!important;
     color:{TX2}!important;
     font-family:'Heebo',sans-serif!important;
     font-weight:600!important;
     font-size:.85rem!important;
-    padding:.55rem 1rem!important;
-    transition:all .2s!important;
+    padding:.5rem 1rem!important;
+    transition:border-color .15s,color .15s!important;
 }}
 .streamlit-expanderHeader:hover{{
-    border-color:{CYAN}66!important;
+    border-color:{CYAN}55!important;
     color:{TX}!important;
 }}
 .streamlit-expanderContent{{
-    border:1px solid {BDR}!important;
+    border:1px solid {BDR2}!important;
     border-top:none!important;
-    border-radius:0 0 10px 10px!important;
+    border-radius:0 0 6px 6px!important;
     background:{SURF}!important;
     padding:1rem!important;
 }}
@@ -530,32 +531,29 @@ button[kind="primary"]:hover{{
 /* ── Metrics ───────────────────────────────────────────────────────────── */
 [data-testid="metric-container"]{{
     background:{SURF}!important;
-    border:1px solid {BDR}!important;
-    border-radius:14px!important;
-    padding:1rem 1.2rem!important;
-    box-shadow:0 2px 12px rgba(0,0,0,.2)!important;
-    transition:all .2s!important;
+    border:1px solid {BDR2}!important;
+    border-radius:6px!important;
+    padding:.85rem 1rem!important;
+    box-shadow:none!important;
 }}
 [data-testid="metric-container"]:hover{{
-    border-color:{BDR2}!important;
-    box-shadow:0 4px 20px rgba(0,0,0,.3)!important;
+    border-color:{CYAN}55!important;
 }}
 
 /* ── Dataframe ─────────────────────────────────────────────────────────── */
 [data-testid="stDataFrame"]{{
-    border:1px solid {BDR}!important;
-    border-radius:12px!important;
+    border:1px solid {BDR2}!important;
+    border-radius:6px!important;
     overflow:hidden!important;
 }}
 
 /* ── File uploader ─────────────────────────────────────────────────────── */
 [data-testid="stFileUploader"]{{
     background:{SURF}!important;
-    border:2px dashed {BDR}!important;
-    border-radius:12px!important;
-    transition:all .2s!important;
+    border:1px dashed {BDR2}!important;
+    border-radius:6px!important;
 }}
-[data-testid="stFileUploader"]:hover{{border-color:{CYAN}88!important;}}
+[data-testid="stFileUploader"]:hover{{border-color:{CYAN}55!important;}}
 
 /* ── Spinner ───────────────────────────────────────────────────────────── */
 div[data-testid="stSpinner"]>div{{border-top-color:{CYAN}!important;}}
@@ -568,19 +566,20 @@ label{{
     font-weight:500!important;
 }}
 .section-head{{
-    font-size:1.55rem;
-    font-weight:900;
-    background:linear-gradient(135deg,{TX} 40%,{CYAN} 100%);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-    margin-bottom:4px;
-    letter-spacing:-.01em;
+    font-size:1.4rem;
+    font-weight:800;
+    color:{TX};
+    margin-bottom:2px;
+    letter-spacing:-.02em;
+    border-bottom:2px solid {CYAN};
+    padding-bottom:6px;
+    display:inline-block;
 }}
 
 /* ── Alert / Info boxes ────────────────────────────────────────────────── */
 .stAlert{{
-    border-radius:10px!important;
-    border:1px solid {BDR}!important;
+    border-radius:6px!important;
+    border:1px solid {BDR2}!important;
     font-family:'Heebo',sans-serif!important;
 }}
 
@@ -596,14 +595,14 @@ label{{
 [data-testid="stSlider"] [data-baseweb="thumb"]{{
     background:{CYAN}!important;
     border:2px solid {BG}!important;
-    box-shadow:0 0 8px {CYAN}66!important;
+    box-shadow:none!important;
 }}
 [data-testid="stSlider"] [data-baseweb="track-fill"]{{
     background:{CYAN}!important;
 }}
 
 /* ── Progress bar ──────────────────────────────────────────────────────── */
-.stProgress>div>div>div>div{{background:linear-gradient(90deg,{CYAN},{PUR})!important;}}
+.stProgress>div>div>div>div{{background:{CYAN}!important;}}
 
 /* ── Checkbox ──────────────────────────────────────────────────────────── */
 .stCheckbox label{{color:{TX}!important;font-size:.88rem!important;}}
@@ -2192,34 +2191,29 @@ def _nav():
 
     # ── Header bar ────────────────────────────────────────────────────────────
     badge_html = (f"<span style='background:{RED};color:#fff;font-size:.62rem;"
-                  f"border-radius:10px;padding:1px 6px;margin-right:4px;'>{_uc}</span>"
+                  f"border-radius:6px;padding:1px 6px;margin-right:4px;'>{_uc}</span>"
                   if _uc > 0 else "")
     st.markdown(f"""<div style="
-        background:linear-gradient(180deg,rgba(11,22,40,.98) 0%,rgba(6,13,26,.98) 100%);
-        border-bottom:1px solid rgba(27,48,80,.6);
-        padding:12px 24px 10px;margin-bottom:14px;
+        background:{SURF};
+        border-bottom:1px solid {BDR2};
+        padding:10px 20px 8px;margin-bottom:12px;
         display:flex;align-items:center;justify-content:space-between;direction:rtl;
-        box-shadow:0 1px 24px rgba(0,0,0,.5);
-        backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
     ">
-        <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:34px;height:34px;border-radius:10px;
-                background:linear-gradient(135deg,{CYAN}22,{PUR}18);
-                border:1px solid {CYAN}33;display:flex;align-items:center;
-                justify-content:center;font-size:1.1rem;">📈</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:28px;height:28px;border-radius:4px;
+                border:1px solid {BDR2};display:flex;align-items:center;
+                justify-content:center;font-size:.95rem;">📈</div>
             <div>
-                <div style="font-size:1.0rem;font-weight:900;letter-spacing:-.02em;
-                    background:linear-gradient(135deg,{TX} 30%,{CYAN} 100%);
-                    -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                <div style="font-size:.95rem;font-weight:800;letter-spacing:-.02em;color:{TX};">
                     מנתח מניות Pro
                 </div>
-                <div style="font-size:.6rem;color:{TX3};margin-top:-1px;letter-spacing:.04em;">
+                <div style="font-size:.58rem;color:{TX3};margin-top:-1px;letter-spacing:.03em;">
                     {datetime.now().strftime('%d/%m/%Y · %H:%M')}
                 </div>
             </div>
         </div>
-        <div style="font-size:.72rem;color:{TX3};direction:rtl;">
-            {badge_html}{'🔔 התראות חדשות' if _uc > 0 else ''}
+        <div style="font-size:.7rem;color:{TX3};direction:rtl;">
+            {badge_html}{'התראות חדשות' if _uc > 0 else ''}
         </div>
     </div>""", unsafe_allow_html=True)
 
@@ -2402,7 +2396,7 @@ def _stock_detail(sym: str):
         st.session_state[per_key] = "6mo"
 
     st.markdown(f"""<div style="background:{SURF};border:2px solid {BDR2};
-        border-radius:16px;padding:22px 26px;margin-top:6px;direction:rtl;">
+        border-radius:8px;padding:22px 26px;margin-top:6px;direction:rtl;">
     """, unsafe_allow_html=True)
 
     # Header row: title + action buttons
@@ -2756,7 +2750,7 @@ def _stock_detail(sym: str):
         border = f"1px solid {vc}88" if is_rec else f"1px solid {BDR}"
         shadow = f"0 0 12px {vc}22" if is_rec else "none"
         col.markdown(f"""<div style="background:{SURF2};border:{border};
-            border-radius:10px;padding:10px 8px;text-align:center;direction:rtl;
+            border-radius:6px;padding:10px 8px;text-align:center;direction:rtl;
             margin-bottom:4px;box-shadow:{shadow};transition:all .15s;">
             <div style="font-size:.68rem;color:{TX3};margin-bottom:4px;">{lbl}</div>
             <div style="font-size:.92rem;font-weight:{'800' if is_rec else '700'};color:{vc};">{val}</div>
@@ -2767,11 +2761,8 @@ def _stock_detail(sym: str):
     # ── "מה המניה עושה?" summary ──────────────────────────────────────────────
     what_is, behavior, driver, mood = _gen_summary(df, info, sym)
     st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-        border-radius:12px;padding:16px 20px;margin-bottom:14px;direction:rtl;
-        box-shadow:0 2px 12px rgba(0,0,0,.3);">
-        <div style="font-size:.9rem;font-weight:800;margin-bottom:12px;
-            background:linear-gradient(135deg,{TX} 50%,{CYAN});
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+        border-radius:6px;padding:16px 20px;margin-bottom:14px;direction:rtl;">
+        <div style="font-size:.9rem;font-weight:800;margin-bottom:12px;color:{TX};">
             📋 מה המניה עושה?
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -2993,9 +2984,8 @@ def _stock_detail(sym: str):
     )
 
     st.html(f"""
-    <div style="background:{BG};border:2px solid {rec_color};border-radius:16px;
-        padding:22px 26px;margin-top:20px;direction:rtl;
-        box-shadow:0 4px 24px {rec_color}22;">
+    <div style="background:{BG};border:1px solid {rec_color}88;border-radius:8px;
+        padding:20px 24px;margin-top:16px;direction:rtl;">
 
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;
                     padding-bottom:16px;border-bottom:1px solid {BDR2};">
@@ -3004,7 +2994,7 @@ def _stock_detail(sym: str):
                         text-shadow:0 0 20px {rec_color}55;">
                 {rec_icon}&nbsp;{rec_label}
             </div>
-            <div style="margin-right:auto;background:{SURF2};border-radius:20px;
+            <div style="margin-right:auto;background:{SURF2};border-radius:8px;
                         padding:3px 14px;font-size:.78rem;color:{TX2};">
                 ציון: <b style="color:{rec_color};">{score:+d}</b> · {len(indicators)} אינדיקטורים
             </div>
@@ -3016,7 +3006,7 @@ def _stock_detail(sym: str):
         {"<div style='margin-top:12px;'><div style='font-size:.78rem;font-weight:700;color:"+RED+";margin-bottom:6px;'>❌ גורמים נגד (" + str(len(bearish)) + ") — <span style='font-weight:400;font-size:.72rem;opacity:.75;'>נלקחו בחשבון בציון</span></div>" + bear_html + "</div>" if bearish else ""}
         {"<div style='margin-top:12px;'><div style='font-size:.78rem;font-weight:700;color:"+TX3+";margin-bottom:6px;'>⬜ נייטרלי (" + str(len(neutral)) + ")</div>" + neut_html + "</div>" if neutral else ""}
 
-        <div style="background:{SURF2};border-radius:10px;padding:12px 16px;
+        <div style="background:{SURF2};border-radius:6px;padding:12px 16px;
                     margin-top:16px;font-size:.79rem;color:{TX2};line-height:1.65;
                     border-right:3px solid {rec_color}66;">
             {risk_msg}
@@ -3087,18 +3077,15 @@ def _stock_detail(sym: str):
     ) if watch_bullets else ""
 
     st.html(f"""
-    <div style="background:{SURF};border:2px solid {CYAN}44;border-radius:16px;
-        padding:22px 26px;margin-top:16px;direction:rtl;
-        box-shadow:0 4px 24px rgba(0,180,216,.08);">
+    <div style="background:{SURF};border:1px solid {BDR2};border-radius:8px;
+        padding:20px 24px;margin-top:16px;direction:rtl;">
 
         <div style="font-size:1rem;font-weight:800;margin-bottom:16px;
-                    border-bottom:1px solid {BDR};padding-bottom:12px;
-                    background:linear-gradient(135deg,{TX} 60%,{CYAN});
-                    -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                    border-bottom:1px solid {BDR2};padding-bottom:12px;color:{TX};">
             💬 השורה התחתונה — מה זה אומר לי?
         </div>
 
-        <div style="margin-bottom:18px;background:{BG};border-radius:12px;
+        <div style="margin-bottom:18px;background:{BG};border-radius:6px;
                     padding:14px 18px;border-right:4px solid {action_color};">
             <div style="font-size:.75rem;color:{TX3};font-weight:700;margin-bottom:6px;">
                 האם לקנות את {sym} עכשיו?
@@ -3112,7 +3099,7 @@ def _stock_detail(sym: str):
         {why_section}
         {watch_section}
 
-        <div style="background:{SURF2};border-radius:10px;padding:14px 18px;
+        <div style="background:{SURF2};border-radius:6px;padding:14px 18px;
                     border-right:4px solid {CYAN};font-size:.84rem;color:{TX};line-height:1.8;">
             <span style="font-weight:700;color:{CYAN};">בשורה האמיתית:</span> {conclusion}
         </div>
@@ -3127,13 +3114,11 @@ def _stock_detail(sym: str):
 # ══════════════════════════════════════════════════════════════════════════════
 def page_home():
     st_autorefresh(interval=60_000, key="home_refresh")   # every 60 s
-    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
-        <div style="font-size:1.6rem;font-weight:900;
-            background:linear-gradient(135deg,{TX} 30%,{CYAN} 100%);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-            🔥 מניות חמות לצפייה
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:14px;border-bottom:1px solid {BDR2};margin-bottom:16px;">
+        <div style="font-size:1.5rem;font-weight:800;color:{TX};letter-spacing:-.02em;">
+            מניות חמות לצפייה
         </div>
-        <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
+        <div style="color:{TX2};font-size:.8rem;margin-top:3px;">
             ניתוח RSI ואות מסחר — מתעדכן כל דקה
         </div>
     </div>""", unsafe_allow_html=True)
@@ -3195,7 +3180,7 @@ def page_home():
                                  for a in sell_alerts)
                 parts.append(f"📈 RSI גבוה — שים לב: {syms}")
             st.html(f"""
-            <div style="background:#0a1e10;border:1px solid {GRN}55;border-radius:10px;
+            <div style="background:#0a1e10;border:1px solid {GRN}55;border-radius:6px;
                 padding:10px 16px;margin-bottom:16px;direction:rtl;font-size:.83rem;color:{TX};">
                 🔔 <b style="color:{GRN};">התראות ממניות המעקב שלך:</b>
                 {"&nbsp;&nbsp;|&nbsp;&nbsp;".join(parts)}
@@ -3232,7 +3217,7 @@ def page_home():
                         {s['t']}
                     </div>
                     <div style="font-size:.62rem;background:{s['a']}1e;color:{s['a']};
-                                padding:3px 8px;border-radius:10px;white-space:nowrap;
+                                padding:3px 8px;border-radius:6px;white-space:nowrap;
                                 border:1px solid {s['a']}33;">
                         {s['c']}
                     </div>
@@ -3250,7 +3235,7 @@ def page_home():
                         {chg_str}
                     </span>
                     <span style="background:{sig_c}1e;color:{sig_c};font-size:.71rem;
-                                 font-weight:700;padding:3px 10px;border-radius:12px;
+                                 font-weight:700;padding:3px 10px;border-radius:6px;
                                  border:1px solid {sig_c}33;">
                         {sig}
                     </span>
@@ -3301,10 +3286,8 @@ def _portfolio_analytics(portfolio: list, pf_quotes: dict):
 
     st.markdown(f"""<div style="margin-top:28px;border-top:1px solid {BDR};
         padding-top:22px;direction:rtl;">
-        <div style="font-size:1rem;font-weight:800;margin-bottom:16px;
-            background:linear-gradient(135deg,{TX} 50%,{CYAN});
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-            📊 ניתוח ביצועים
+        <div style="font-size:1rem;font-weight:800;margin-bottom:16px;color:{TX};">
+            ניתוח ביצועים
         </div></div>""", unsafe_allow_html=True)
 
     all_syms = list({h["sym"] for h in portfolio}) + ["SPY", "QQQ", "^TA35.TA"]
@@ -3695,7 +3678,7 @@ def page_watchlist():
             st.markdown(f"<div style='{bg};padding:10px 4px;direction:rtl;'>"
                         f"<span style='background:{sig_c}22;color:{sig_c};"
                         f"font-size:.76rem;font-weight:700;padding:4px 12px;"
-                        f"border-radius:12px;'>{sig}</span></div>",
+                        f"border-radius:6px;'>{sig}</span></div>",
                         unsafe_allow_html=True)
         with rc[5]:
             if st.button("✕", key=f"wl_del_{i}", help="הסר מהרשימה"):
@@ -3771,7 +3754,7 @@ def _demo_setup():
             st.markdown(
                 f'<div style="background:linear-gradient(150deg,{SURF},{sc["color"]}12);'
                 f'border:1px solid {sc["color"]}44;border-top:3px solid {sc["color"]};'
-                f'border-radius:14px;padding:14px 16px;direction:rtl;min-height:110px;">'
+                f'border-radius:8px;padding:14px 16px;direction:rtl;min-height:110px;">'
                 f'<div style="font-size:1rem;font-weight:900;color:{sc["color"]};'
                 f'margin-bottom:5px;">{sc["name"]}</div>'
                 f'<div style="font-size:.73rem;color:{TX2};line-height:1.5;">{sc["story"]}</div>'
@@ -3811,7 +3794,7 @@ def _demo_setup():
         with col:
             st.markdown(
                 f'<div style="background:{bg};border:2px solid {bdr_c};'
-                f'border-radius:12px;padding:14px;direction:rtl;min-height:90px;">'
+                f'border-radius:6px;padding:14px;direction:rtl;min-height:90px;">'
                 f'<div style="font-size:.9rem;font-weight:800;color:{TX if is_sel else TX2};">'
                 f'{sname}</div>'
                 f'<div style="font-size:.72rem;color:{TX2};margin-top:6px;line-height:1.5;">'
@@ -3997,7 +3980,7 @@ def _demo_report():
     # Header summary
     strat_lbl = S.get("demo2_strategy", "📊 RSI קלאסי")
     st.markdown(f"""<div style="background:{SURF};border:1px solid {BDR};
-        border-radius:14px;padding:24px 28px;direction:rtl;margin-bottom:16px;">
+        border-radius:8px;padding:24px 28px;direction:rtl;margin-bottom:16px;">
         <div style="font-size:1.1rem;font-weight:800;color:{TX};margin-bottom:4px;">
             📊 דוח סיכום — {S['demo2_start_year']}–{S['demo2_end_year']}
         </div>
@@ -4008,21 +3991,21 @@ def _demo_report():
             {', '.join(S['demo2_tickers'])}
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-            <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
+            <div style="background:{SURF2};border-radius:6px;padding:14px;text-align:center;">
                 <div style="font-size:.7rem;color:{TX3};margin-bottom:5px;">האם הגענו ליעד?</div>
                 <div style="font-size:.95rem;font-weight:700;color:{reached_c};">{reached_s}</div>
                 {"<div style='font-size:.74rem;color:"+TX2+";margin-top:4px;'>ב-"+r['tgt_date']+"</div>" if r['tgt_reached'] and r['tgt_date'] else ""}
             </div>
-            <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
+            <div style="background:{SURF2};border-radius:6px;padding:14px;text-align:center;">
                 <div style="font-size:.7rem;color:{TX3};margin-bottom:5px;">תשואה כוללת</div>
                 <div style="font-size:1.1rem;font-weight:800;color:{GRN if ret>=0 else RED};">{ret:+.1f}%</div>
                 <div style="font-size:.74rem;color:{TX2};margin-top:3px;">קנה והחזק: {bh_r:+.1f}%</div>
             </div>
-            <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
+            <div style="background:{SURF2};border-radius:6px;padding:14px;text-align:center;">
                 <div style="font-size:.7rem;color:{TX3};margin-bottom:5px;">עודף על קנה-והחזק</div>
                 <div style="font-size:1.1rem;font-weight:800;color:{GRN if ret>bh_r else RED};">{ret-bh_r:+.1f}%</div>
             </div>
-            <div style="background:{SURF2};border-radius:10px;padding:14px;text-align:center;">
+            <div style="background:{SURF2};border-radius:6px;padding:14px;text-align:center;">
                 <div style="font-size:.7rem;color:{TX3};margin-bottom:5px;">ציון AI</div>
                 <div style="font-size:1.1rem;font-weight:800;color:{gc};">{grade}</div>
             </div>
@@ -4057,7 +4040,7 @@ def _demo_report():
         bc1, bc2 = st.columns(2)
         if bt:
             bc1.markdown(f"""<div style="background:{SURF};border:1px solid {GRN}55;
-                border-radius:12px;padding:16px;direction:rtl;">
+                border-radius:6px;padding:16px;direction:rtl;">
                 <div style="font-size:.75rem;color:{GRN};font-weight:700;margin-bottom:8px;">
                     🏆 עסקה הטובה ביותר
                 </div>
@@ -4071,7 +4054,7 @@ def _demo_report():
             </div>""", unsafe_allow_html=True)
         if wt:
             bc2.markdown(f"""<div style="background:{SURF};border:1px solid {RED}55;
-                border-radius:12px;padding:16px;direction:rtl;">
+                border-radius:6px;padding:16px;direction:rtl;">
                 <div style="font-size:.75rem;color:{RED};font-weight:700;margin-bottom:8px;">
                     💔 עסקה הגרועה ביותר
                 </div>
@@ -4329,7 +4312,7 @@ def page_news():
                        else f"${price:.4f}")
             col.markdown(
                 f'<div style="background:{SURF2};border:1px solid {BDR};'
-                f'border-top:2px solid {color};border-radius:10px;padding:10px 8px;'
+                f'border-top:2px solid {color};border-radius:6px;padding:10px 8px;'
                 f'text-align:center;direction:rtl;">'
                 f'<div style="font-size:.65rem;color:{TX3};margin-bottom:3px;">{name}</div>'
                 f'<div style="font-size:.88rem;font-weight:700;color:{TX};">{price_s}</div>'
@@ -4421,7 +4404,7 @@ def page_news():
 
     if not user_syms:
         st.markdown(
-            f'<div style="background:{SURF};border:1px solid {BDR};border-radius:12px;'
+            f'<div style="background:{SURF};border:1px solid {BDR};border-radius:6px;'
             f'padding:24px;text-align:center;direction:rtl;color:{TX2};">'
             f'הוסף מניות לתיק או לרשימת המעקב כדי לראות חדשות רלוונטיות.</div>',
             unsafe_allow_html=True)
@@ -4470,7 +4453,7 @@ def page_news():
 
             st.markdown(
                 f'<div style="background:{SURF};border:1px solid {bdr_col};'
-                f'border-radius:12px;padding:16px;margin-bottom:14px;direction:rtl;">'
+                f'border-radius:6px;padding:16px;margin-bottom:14px;direction:rtl;">'
                 f'<div style="display:flex;justify-content:space-between;'
                 f'align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">'
                 f'<div style="display:flex;align-items:center;gap:10px;">'
@@ -4519,7 +4502,7 @@ def page_news():
 
     if not user_syms:
         st.markdown(
-            f'<div style="background:{SURF};border:1px solid {BDR};border-radius:12px;'
+            f'<div style="background:{SURF};border:1px solid {BDR};border-radius:6px;'
             f'padding:24px;text-align:center;direction:rtl;color:{TX2};">'
             f'הוסף מניות לתיק או לרשימת המעקב כדי לראות אירועים קרובים.</div>',
             unsafe_allow_html=True)
@@ -4565,7 +4548,7 @@ def page_news():
 
         if not all_evts:
             st.markdown(
-                f'<div style="background:{SURF};border:1px solid {BDR};border-radius:12px;'
+                f'<div style="background:{SURF};border:1px solid {BDR};border-radius:6px;'
                 f'padding:24px;text-align:center;direction:rtl;color:{TX2};">'
                 f'לא נמצאו אירועים קרובים (90 יום) למניות שלך.</div>',
                 unsafe_allow_html=True)
@@ -4590,7 +4573,7 @@ def page_news():
 
                 st.markdown(
                     f'<div style="background:{SURF};border:1px solid {bdr_c};'
-                    f'border-radius:10px;padding:14px 18px;margin-bottom:8px;direction:rtl;'
+                    f'border-radius:6px;padding:14px 18px;margin-bottom:8px;direction:rtl;'
                     f'display:flex;justify-content:space-between;align-items:center;'
                     f'flex-wrap:wrap;gap:8px;">'
                     f'<div style="display:flex;align-items:center;gap:12px;">'
@@ -4601,7 +4584,7 @@ def page_news():
                     f'<div style="font-size:.75rem;color:{TX3};margin-top:2px;">'
                     f'{evt["date"]}</div></div></div>'
                     f'<div style="background:{days_c}22;color:{days_c};font-size:.82rem;'
-                    f'font-weight:700;padding:4px 14px;border-radius:20px;">'
+                    f'font-weight:700;padding:4px 14px;border-radius:8px;">'
                     f'{days_s}</div></div>',
                     unsafe_allow_html=True)
 
@@ -4660,7 +4643,7 @@ def page_agents():
             st.markdown(
                 f'<div style="background:linear-gradient(160deg,{SURF},#0b1b2f);'
                 f'border:1px solid {bdr};border-top:3px solid {sc};'
-                f'border-radius:14px;padding:18px;direction:rtl;">'
+                f'border-radius:8px;padding:18px;direction:rtl;">'
                 f'<div style="display:flex;justify-content:space-between;'
                 f'align-items:center;margin-bottom:8px;">'
                 f'<div style="font-size:1rem;font-weight:800;color:{TX};">{icon} {label}</div>'
@@ -4737,7 +4720,7 @@ def page_agents():
     nc1, nc2, nc3 = st.columns([4, 1.5, 1.3])
     with nc1:
         badge = (f"&nbsp;<span style='background:{RED};color:#fff;font-size:.68rem;"
-                 f"border-radius:10px;padding:1px 7px;'>{uc}</span>") if uc > 0 else ""
+                 f"border-radius:6px;padding:1px 7px;'>{uc}</span>") if uc > 0 else ""
         st.markdown(
             f'<div class="section-head" style="font-size:1.1rem;">🔔 מרכז התראות{badge}</div>',
             unsafe_allow_html=True)
@@ -4864,13 +4847,13 @@ def page_agents():
                     # Badges
                     f'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">'
                     f'<span style="background:{conf_c}18;color:{conf_c};border:1px solid {conf_c}33;'
-                    f'border-radius:12px;padding:3px 10px;font-size:.72rem;font-weight:700;">'
+                    f'border-radius:6px;padding:3px 10px;font-size:.72rem;font-weight:700;">'
                     f'{conf_icon} ביטחון: {conf}</span>'
                     f'<span style="background:{risk_c}18;color:{risk_c};border:1px solid {risk_c}33;'
-                    f'border-radius:12px;padding:3px 10px;font-size:.72rem;font-weight:700;">'
+                    f'border-radius:6px;padding:3px 10px;font-size:.72rem;font-weight:700;">'
                     f'⚠️ סיכון: {risk}</span>'
                     + (f'<span style="background:{SURF2};color:{TX2};border:1px solid {BDR};'
-                       f'border-radius:12px;padding:3px 10px;font-size:.71rem;">'
+                       f'border-radius:6px;padding:3px 10px;font-size:.71rem;">'
                        f'RSI {rsi_val:.0f} · נפח x{vol_ratio:.1f} · ציון {score}</span>'
                        if rsi_val else '')
                     + f'</div>'
@@ -4949,7 +4932,7 @@ def page_learn():
     # ── shared card style ────────────────────────────────────────────────────
     def _term_card(term_he, term_en, body, example="", color=CYAN):
         st.markdown(
-            f'<div style="background:{SURF2};border:1px solid {color}44;border-radius:12px;'
+            f'<div style="background:{SURF2};border:1px solid {color}44;border-radius:6px;'
             f'padding:14px 18px;margin-bottom:10px;direction:rtl;text-align:right;">'
             f'<span style="font-size:1.05rem;font-weight:700;color:{color};">{term_he}</span>'
             f'<span style="color:{TX3};font-size:.82rem;margin-right:8px;">· {term_en}</span><br>'
@@ -4963,7 +4946,7 @@ def page_learn():
         pros_html = "".join(f'<li>{p}</li>' for p in pros)
         cons_html = "".join(f'<li>{c}</li>' for c in cons)
         st.markdown(
-            f'<div style="background:{SURF2};border:1px solid {color}55;border-radius:14px;'
+            f'<div style="background:{SURF2};border:1px solid {color}55;border-radius:8px;'
             f'padding:18px 20px;margin-bottom:14px;direction:rtl;text-align:right;">'
             f'<div style="font-size:1.15rem;font-weight:700;color:{color};margin-bottom:4px;">'
             f'{emoji} {name}</div>'
@@ -5254,7 +5237,7 @@ def page_learn():
 
         # Tips box
         st.markdown(
-            f'<div style="background:{SURF2};border:1px solid {GRN}44;border-radius:14px;'
+            f'<div style="background:{SURF2};border:1px solid {GRN}44;border-radius:8px;'
             f'padding:18px 20px;margin-top:8px;direction:rtl;text-align:right;">'
             f'<div style="font-size:1rem;font-weight:700;color:{GRN};margin-bottom:10px;">💡 כללי הזהב של מכירה</div>'
             f'<ol style="color:{TX};font-size:.88rem;padding-right:20px;line-height:1.85;">'
@@ -5291,7 +5274,7 @@ def page_learn():
             else:
                 val_color = RED
             return (
-                f'<div style="position:relative;height:28px;border-radius:14px;overflow:visible;'
+                f'<div style="position:relative;height:28px;border-radius:8px;overflow:visible;'
                 f'background:linear-gradient(to right,{GRN}88 0% 30%,{AMB}88 30% 70%,{RED}88 70% 100%);">'
                 f'<div style="position:absolute;left:{pct}%;top:-5px;transform:translateX(-50%);'
                 f'width:6px;height:38px;background:{val_color};border-radius:3px;'
@@ -5423,7 +5406,7 @@ def page_learn():
                 if res["mode"] == "auto" else ""
             )
             st.markdown(
-                f'<div style="background:{SURF2};border:1px solid {col}55;border-radius:16px;'
+                f'<div style="background:{SURF2};border:1px solid {col}55;border-radius:8px;'
                 f'padding:20px 24px;direction:rtl;text-align:right;">'
                 f'<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;">'
                 f'<div style="font-size:3.2rem;font-weight:800;color:{col};line-height:1;">'
@@ -5524,10 +5507,9 @@ def _live_bar():
 
     now_str = datetime.now().strftime("%H:%M:%S")
     st.markdown(
-        f'<div style="background:{SURF};border:1px solid {BDR};border-radius:10px;'
+        f'<div style="background:{SURF};border:1px solid {BDR};border-radius:6px;'
         f'padding:7px 16px;margin-bottom:14px;display:flex;align-items:center;'
-        f'justify-content:space-between;overflow-x:auto;direction:ltr;'
-        f'box-shadow:0 1px 8px rgba(0,0,0,.3);">'
+        f'justify-content:space-between;overflow-x:auto;direction:ltr;">'
         f'<div style="display:flex;align-items:center;gap:0;flex-wrap:nowrap;">'
         f'<span style="color:{GRN};font-size:.7rem;font-weight:700;'
         f'margin-left:14px;white-space:nowrap;direction:rtl;">'
@@ -5621,11 +5603,9 @@ def _translate_he(text: str) -> str:
 # PAGE: GURU TRACKER — גורו טראקר
 # ══════════════════════════════════════════════════════════════════════════════
 def page_guru():
-    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
-        <div style="font-size:1.6rem;font-weight:900;
-            background:linear-gradient(135deg,{AMB} 0%,{CYAN} 100%);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-            🏆 גורו טראקר
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:14px;border-bottom:1px solid {BDR2};margin-bottom:14px;">
+        <div style="font-size:1.5rem;font-weight:800;color:{TX};letter-spacing:-.02em;">
+            גורו טראקר
         </div>
         <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
             עדכוני חדשות על המשקיעים הגדולים בעולם — מתעדכן כל 15 דקות
@@ -5801,10 +5781,8 @@ def page_guru():
 # PAGE: ISRAEL — מניות ישראל
 # ══════════════════════════════════════════════════════════════════════════════
 def page_israel():
-    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
-        <div style="font-size:1.6rem;font-weight:900;
-            background:linear-gradient(135deg,{GRN} 0%,{CYAN} 100%);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:14px;border-bottom:1px solid {BDR2};margin-bottom:14px;">
+        <div style="font-size:1.5rem;font-weight:800;color:{TX};letter-spacing:-.02em;">
             🇮🇱 מניות ישראל
         </div>
         <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
@@ -5844,19 +5822,19 @@ def page_israel():
     sc1, sc2, sc3 = st.columns(3)
     with sc1:
         st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-            border-radius:10px;padding:12px;text-align:center;direction:rtl;">
+            border-radius:6px;padding:12px;text-align:center;direction:rtl;">
             <div style="color:{GRN};font-size:1.3rem;font-weight:800;">{gainers}</div>
             <div style="color:{TX2};font-size:.75rem;">עולות</div></div>""",
             unsafe_allow_html=True)
     with sc2:
         st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-            border-radius:10px;padding:12px;text-align:center;direction:rtl;">
+            border-radius:6px;padding:12px;text-align:center;direction:rtl;">
             <div style="color:{RED};font-size:1.3rem;font-weight:800;">{losers}</div>
             <div style="color:{TX2};font-size:.75rem;">יורדות</div></div>""",
             unsafe_allow_html=True)
     with sc3:
         st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-            border-radius:10px;padding:12px;text-align:center;direction:rtl;">
+            border-radius:6px;padding:12px;text-align:center;direction:rtl;">
             <div style="color:{CYAN};font-size:1.3rem;font-weight:800;">{len(results)}</div>
             <div style="color:{TX2};font-size:.75rem;">מניות</div></div>""",
             unsafe_allow_html=True)
@@ -5876,7 +5854,7 @@ def page_israel():
 
         with cols[i % 3]:
             st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-                border-top:3px solid {c};border-radius:12px;padding:14px;
+                border-top:3px solid {c};border-radius:6px;padding:14px;
                 margin-bottom:10px;direction:rtl;cursor:pointer;"
                 onclick="void(0)">
                 <div style="font-size:.7rem;color:{TX3};margin-bottom:2px;">{r.get('sec','')}</div>
@@ -5903,11 +5881,9 @@ def page_israel():
 # PAGE: SCREENER — סורק טכני
 # ══════════════════════════════════════════════════════════════════════════════
 def page_screener():
-    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
-        <div style="font-size:1.6rem;font-weight:900;
-            background:linear-gradient(135deg,{TX} 30%,{CYAN} 100%);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-            🔍 סורק טכני
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:14px;border-bottom:1px solid {BDR2};margin-bottom:14px;">
+        <div style="font-size:1.5rem;font-weight:800;color:{TX};letter-spacing:-.02em;">
+            סורק טכני
         </div>
         <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
             סנן {len(DEEP_SCAN_UNIVERSE)} מניות לפי קריטריונים טכניים בזמן אמת
@@ -5996,7 +5972,7 @@ def page_screener():
             above_ma = ma50 and price > ma50
 
             st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-                border-radius:14px;padding:16px;margin-bottom:12px;direction:rtl;
+                border-radius:8px;padding:16px;margin-bottom:12px;direction:rtl;
                 border-top:3px solid {rsi_c};">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                     <div>
@@ -6042,11 +6018,9 @@ def page_earnings():
     pf_syms    = [h["sym"] for h in portfolio]
     all_syms   = list(dict.fromkeys(pf_syms + watchlist))
 
-    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
-        <div style="font-size:1.6rem;font-weight:900;
-            background:linear-gradient(135deg,{TX} 30%,{AMB} 100%);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-            📅 לוח שנה — דוחות רווחים
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:14px;border-bottom:1px solid {BDR2};margin-bottom:14px;">
+        <div style="font-size:1.5rem;font-weight:800;color:{TX};letter-spacing:-.02em;">
+            לוח שנה — דוחות רווחים
         </div>
         <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
             דוחות רבעוניים קרובים עבור התיק ורשימת המעקב שלך
@@ -6103,7 +6077,7 @@ def page_earnings():
         tag = f"<span style='background:{CYAN}22;color:{CYAN};border-radius:6px;padding:1px 7px;font-size:.68rem;margin-right:6px;'>תיק</span>" if r["in_pf"] else ""
 
         st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-            border-radius:12px;padding:14px 18px;margin-bottom:8px;direction:rtl;
+            border-radius:6px;padding:14px 18px;margin-bottom:8px;direction:rtl;
             display:flex;align-items:center;justify-content:space-between;
             border-right:4px solid {bc};">
             <div>
@@ -6127,11 +6101,9 @@ def page_alerts():
     if isinstance(alerts, list):
         alerts = {}
 
-    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
-        <div style="font-size:1.6rem;font-weight:900;
-            background:linear-gradient(135deg,{TX} 30%,{RED} 100%);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-            🔔 התראות מחיר
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:14px;border-bottom:1px solid {BDR2};margin-bottom:14px;">
+        <div style="font-size:1.5rem;font-weight:800;color:{TX};letter-spacing:-.02em;">
+            התראות מחיר
         </div>
         <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
             קבל התראה כשמניה חוצה יעד מחיר
