@@ -3,9 +3,19 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import json, os, time, concurrent.futures, threading, urllib.parse
+import json, os, time, concurrent.futures, threading, urllib.parse, tempfile
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
+
+# ── Writable data directory (local = script dir; Cloud = /tmp) ────────────────
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+try:
+    _test = os.path.join(_APP_DIR, ".write_test")
+    open(_test, "w").close(); os.remove(_test)
+    DATA_DIR = _APP_DIR
+except (IOError, OSError):
+    DATA_DIR = os.path.join(tempfile.gettempdir(), "stock_analyzer")
+    os.makedirs(DATA_DIR, exist_ok=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CONSTANTS
@@ -61,11 +71,11 @@ HOT = [
          "מרוויחה ממעבר תקציבי פרסום מטלוויזיה לדיגיטל."},
 ]
 
-PF_FILE = "portfolio.json"
-WL_FILE          = "watchlist.json"
-ALERTS_FILE      = "alerts.json"
-TELEGRAM_FILE    = "telegram_config.json"
-GURU_SEEN_FILE   = "guru_seen.json"
+PF_FILE          = os.path.join(DATA_DIR, "portfolio.json")
+WL_FILE          = os.path.join(DATA_DIR, "watchlist.json")
+ALERTS_FILE      = os.path.join(DATA_DIR, "alerts.json")
+TELEGRAM_FILE    = os.path.join(DATA_DIR, "telegram_config.json")
+GURU_SEEN_FILE   = os.path.join(DATA_DIR, "guru_seen.json")
 
 GURUS = [
     {"id": "burry",        "name": "Michael Burry",        "fund": "Scion Asset Management",  "emoji": "🐻",
@@ -650,8 +660,12 @@ def load_json(path):
         return []
 
 def save_json(path, data):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        return False
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AGENT SYSTEM — state, notifications, worker threads
@@ -3618,10 +3632,18 @@ def page_watchlist():
     with ac2:
         if st.button("➕ הוסף", key="wl_add", type="primary",
                      use_container_width=True):
-            if add_sym and add_sym not in watchlist:
-                watchlist.append(add_sym)
-                save_json(WL_FILE, watchlist)
-                st.rerun()
+            if not add_sym:
+                st.warning("הזן סמול מניה")
+            elif add_sym in (watchlist if isinstance(watchlist, list) else []):
+                st.info(f"{add_sym} כבר ברשימה")
+            else:
+                wl = watchlist if isinstance(watchlist, list) else []
+                wl.append(add_sym)
+                ok = save_json(WL_FILE, wl)
+                if ok:
+                    st.rerun()
+                else:
+                    st.error("שגיאה בשמירה — נסה שוב")
 
     st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
