@@ -68,16 +68,32 @@ TELEGRAM_FILE    = "telegram_config.json"
 GURU_SEEN_FILE   = "guru_seen.json"
 
 GURUS = [
-    {"id": "burry",   "name": "Michael Burry",  "fund": "Scion Asset Management", "emoji": "🐻",
+    {"id": "burry",        "name": "Michael Burry",        "fund": "Scion Asset Management",  "emoji": "🐻",
      "q": "Michael Burry stock investment"},
-    {"id": "buffett", "name": "Warren Buffett",  "fund": "Berkshire Hathaway",     "emoji": "🏦",
+    {"id": "buffett",      "name": "Warren Buffett",        "fund": "Berkshire Hathaway",       "emoji": "🏦",
      "q": "Warren Buffett Berkshire Hathaway buy sell"},
-    {"id": "ackman",  "name": "Bill Ackman",     "fund": "Pershing Square",        "emoji": "🎯",
+    {"id": "musk",         "name": "Elon Musk",             "fund": "Tesla / SpaceX / xAI",     "emoji": "⚡",
+     "q": "Elon Musk Tesla SpaceX investment market"},
+    {"id": "ackman",       "name": "Bill Ackman",           "fund": "Pershing Square",          "emoji": "🎯",
      "q": "Bill Ackman Pershing Square position"},
-    {"id": "wood",    "name": "Cathie Wood",     "fund": "ARK Invest",             "emoji": "🚀",
+    {"id": "wood",         "name": "Cathie Wood",           "fund": "ARK Invest",               "emoji": "🚀",
      "q": "Cathie Wood ARK Invest buy sell"},
-    {"id": "dalio",   "name": "Ray Dalio",       "fund": "Bridgewater",            "emoji": "🌊",
+    {"id": "dalio",        "name": "Ray Dalio",             "fund": "Bridgewater",              "emoji": "🌊",
      "q": "Ray Dalio Bridgewater portfolio"},
+    {"id": "druckenmiller","name": "Stanley Druckenmiller", "fund": "Duquesne Family Office",   "emoji": "🦅",
+     "q": "Stanley Druckenmiller Duquesne investment"},
+    {"id": "dimon",        "name": "Jamie Dimon",           "fund": "JPMorgan Chase",           "emoji": "🏛️",
+     "q": "Jamie Dimon JPMorgan economy market outlook"},
+    {"id": "icahn",        "name": "Carl Icahn",            "fund": "Icahn Enterprises",        "emoji": "🦁",
+     "q": "Carl Icahn activist investor position"},
+    {"id": "fink",         "name": "Larry Fink",            "fund": "BlackRock",                "emoji": "🌑",
+     "q": "Larry Fink BlackRock investment market"},
+    {"id": "tepper",       "name": "David Tepper",          "fund": "Appaloosa Management",     "emoji": "🐐",
+     "q": "David Tepper Appaloosa hedge fund"},
+    {"id": "tudor",        "name": "Paul Tudor Jones",      "fund": "Tudor Investment",         "emoji": "🎲",
+     "q": "Paul Tudor Jones Tudor Investment macro"},
+    {"id": "soros",        "name": "George Soros",          "fund": "Soros Fund Management",   "emoji": "♟️",
+     "q": "George Soros fund investment"},
 ]
 
 # ── Deep-scan universe: 100+ stocks with Hebrew metadata ──────────────────────
