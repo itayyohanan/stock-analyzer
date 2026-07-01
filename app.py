@@ -392,46 +392,221 @@ st.set_page_config(
 # GLOBAL CSS
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;800;900&display=swap');
-#MainMenu,footer,header{{visibility:hidden;}}
-.stDeployButton{{display:none;}}
-html,body,.stApp{{background:{BG}!important;font-family:'Heebo',sans-serif!important;}}
-.block-container{{padding:1.2rem 1.8rem!important;max-width:100%!important;}}
-::-webkit-scrollbar{{width:5px;height:5px;}}
-::-webkit-scrollbar-track{{background:{SURF};}}
-::-webkit-scrollbar-thumb{{background:{BDR2};border-radius:4px;}}
-::-webkit-scrollbar-thumb:hover{{background:{CYAN};}}
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
+
+/* ── Reset & Base ──────────────────────────────────────────────────────── */
+#MainMenu,footer,header,.stDeployButton{{visibility:hidden;display:none;}}
+html,body,.stApp{{
+    background:{BG}!important;
+    font-family:'Heebo',sans-serif!important;
+    color:{TX}!important;
+}}
+.block-container{{
+    padding:1.4rem 2rem!important;
+    max-width:100%!important;
+}}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar{{width:4px;height:4px;}}
+::-webkit-scrollbar-track{{background:transparent;}}
+::-webkit-scrollbar-thumb{{background:{BDR};border-radius:6px;}}
+::-webkit-scrollbar-thumb:hover{{background:{CYAN}88;}}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
 .stButton>button{{
     border-radius:10px!important;
     font-family:'Heebo',sans-serif!important;
     font-weight:600!important;
-    transition:all .18s ease!important;
-    letter-spacing:.02em!important;
+    font-size:.82rem!important;
+    padding:.38rem .85rem!important;
+    transition:all .2s cubic-bezier(.4,0,.2,1)!important;
+    border:1px solid {BDR}!important;
+    background:{SURF}!important;
+    color:{TX2}!important;
+    letter-spacing:.01em!important;
+    box-shadow:none!important;
 }}
 .stButton>button:hover{{
     transform:translateY(-1px)!important;
-    box-shadow:0 4px 14px rgba(0,180,216,.2)!important;
+    border-color:{CYAN}88!important;
+    color:{CYAN}!important;
+    background:rgba(0,180,216,.05)!important;
+    box-shadow:0 4px 18px rgba(0,180,216,.1)!important;
 }}
 button[kind="primary"]{{
-    background:linear-gradient(135deg,{CYAN}1a,{PUR}18)!important;
+    background:linear-gradient(135deg,rgba(0,180,216,.12),rgba(167,139,250,.08))!important;
     border:1px solid {CYAN}!important;
     color:{CYAN}!important;
+    box-shadow:0 0 16px rgba(0,180,216,.08)!important;
 }}
-.stTextInput>div>div>input{{
-    background:{SURF2}!important;color:{TX}!important;
-    border:1px solid {BDR}!important;border-radius:10px!important;
-    font-family:'Heebo',sans-serif!important;font-size:.92rem!important;
-    direction:rtl!important;text-align:right!important;
+button[kind="primary"]:hover{{
+    background:linear-gradient(135deg,rgba(0,180,216,.2),rgba(167,139,250,.14))!important;
+    box-shadow:0 4px 20px rgba(0,180,216,.2)!important;
+    border-color:{CYAN}!important;
+    color:{TX}!important;
 }}
-.stTextInput>div>div>input:focus{{
-    border-color:{CYAN}88!important;box-shadow:0 0 0 3px {CYAN}12!important;
+
+/* ── Inputs ────────────────────────────────────────────────────────────── */
+.stTextInput>div>div>input,
+.stNumberInput>div>div>input{{
+    background:{SURF}!important;
+    color:{TX}!important;
+    border:1px solid {BDR}!important;
+    border-radius:10px!important;
+    font-family:'Heebo',sans-serif!important;
+    font-size:.9rem!important;
+    transition:all .2s!important;
+    direction:rtl!important;
+    text-align:right!important;
+    padding:.5rem .85rem!important;
+}}
+.stTextInput>div>div>input:focus,
+.stNumberInput>div>div>input:focus{{
+    border-color:{CYAN}!important;
+    box-shadow:0 0 0 3px rgba(0,180,216,.1)!important;
+    outline:none!important;
 }}
 .stSelectbox>div>div{{
-    background:{SURF2}!important;border:1px solid {BDR}!important;
-    border-radius:10px!important;color:{TX}!important;
+    background:{SURF}!important;
+    border:1px solid {BDR}!important;
+    border-radius:10px!important;
+    color:{TX}!important;
+    font-family:'Heebo',sans-serif!important;
+    transition:all .2s!important;
 }}
+.stSelectbox>div>div:hover{{border-color:{CYAN}88!important;}}
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"]{{
+    background:{SURF}!important;
+    border-radius:12px!important;
+    padding:4px!important;
+    gap:3px!important;
+    border:1px solid {BDR}!important;
+}}
+.stTabs [data-baseweb="tab"]{{
+    border-radius:8px!important;
+    color:{TX2}!important;
+    font-family:'Heebo',sans-serif!important;
+    font-weight:600!important;
+    font-size:.84rem!important;
+    padding:.35rem 1.1rem!important;
+    transition:all .2s!important;
+    border:none!important;
+    background:transparent!important;
+}}
+.stTabs [aria-selected="true"]{{
+    background:linear-gradient(135deg,rgba(0,180,216,.14),rgba(167,139,250,.1))!important;
+    color:{CYAN}!important;
+    box-shadow:0 2px 10px rgba(0,180,216,.12)!important;
+}}
+.stTabs [data-baseweb="tab-border"]{{display:none!important;}}
+.stTabs [data-baseweb="tab-highlight"]{{display:none!important;}}
+
+/* ── Expander ──────────────────────────────────────────────────────────── */
+.streamlit-expanderHeader{{
+    background:{SURF}!important;
+    border:1px solid {BDR}!important;
+    border-radius:10px!important;
+    color:{TX2}!important;
+    font-family:'Heebo',sans-serif!important;
+    font-weight:600!important;
+    font-size:.85rem!important;
+    padding:.55rem 1rem!important;
+    transition:all .2s!important;
+}}
+.streamlit-expanderHeader:hover{{
+    border-color:{CYAN}66!important;
+    color:{TX}!important;
+}}
+.streamlit-expanderContent{{
+    border:1px solid {BDR}!important;
+    border-top:none!important;
+    border-radius:0 0 10px 10px!important;
+    background:{SURF}!important;
+    padding:1rem!important;
+}}
+
+/* ── Metrics ───────────────────────────────────────────────────────────── */
+[data-testid="metric-container"]{{
+    background:{SURF}!important;
+    border:1px solid {BDR}!important;
+    border-radius:14px!important;
+    padding:1rem 1.2rem!important;
+    box-shadow:0 2px 12px rgba(0,0,0,.2)!important;
+    transition:all .2s!important;
+}}
+[data-testid="metric-container"]:hover{{
+    border-color:{BDR2}!important;
+    box-shadow:0 4px 20px rgba(0,0,0,.3)!important;
+}}
+
+/* ── Dataframe ─────────────────────────────────────────────────────────── */
+[data-testid="stDataFrame"]{{
+    border:1px solid {BDR}!important;
+    border-radius:12px!important;
+    overflow:hidden!important;
+}}
+
+/* ── File uploader ─────────────────────────────────────────────────────── */
+[data-testid="stFileUploader"]{{
+    background:{SURF}!important;
+    border:2px dashed {BDR}!important;
+    border-radius:12px!important;
+    transition:all .2s!important;
+}}
+[data-testid="stFileUploader"]:hover{{border-color:{CYAN}88!important;}}
+
+/* ── Spinner ───────────────────────────────────────────────────────────── */
 div[data-testid="stSpinner"]>div{{border-top-color:{CYAN}!important;}}
-label{{color:{TX2}!important;font-family:'Heebo',sans-serif!important;font-size:.82rem!important;}}
+
+/* ── Labels & Text ─────────────────────────────────────────────────────── */
+label{{
+    color:{TX2}!important;
+    font-family:'Heebo',sans-serif!important;
+    font-size:.82rem!important;
+    font-weight:500!important;
+}}
+.section-head{{
+    font-size:1.55rem;
+    font-weight:900;
+    background:linear-gradient(135deg,{TX} 40%,{CYAN} 100%);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    margin-bottom:4px;
+    letter-spacing:-.01em;
+}}
+
+/* ── Alert / Info boxes ────────────────────────────────────────────────── */
+.stAlert{{
+    border-radius:10px!important;
+    border:1px solid {BDR}!important;
+    font-family:'Heebo',sans-serif!important;
+}}
+
+/* ── Plotly tooltips ───────────────────────────────────────────────────── */
+.js-plotly-plot .plotly .modebar{{
+    background:transparent!important;
+}}
+
+/* ── Slider ────────────────────────────────────────────────────────────── */
+.stSlider [data-baseweb="slider"]{{
+    padding:0!important;
+}}
+[data-testid="stSlider"] [data-baseweb="thumb"]{{
+    background:{CYAN}!important;
+    border:2px solid {BG}!important;
+    box-shadow:0 0 8px {CYAN}66!important;
+}}
+[data-testid="stSlider"] [data-baseweb="track-fill"]{{
+    background:{CYAN}!important;
+}}
+
+/* ── Progress bar ──────────────────────────────────────────────────────── */
+.stProgress>div>div>div>div{{background:linear-gradient(90deg,{CYAN},{PUR})!important;}}
+
+/* ── Checkbox ──────────────────────────────────────────────────────────── */
+.stCheckbox label{{color:{TX}!important;font-size:.88rem!important;}}
 </style>""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2020,27 +2195,31 @@ def _nav():
                   f"border-radius:10px;padding:1px 6px;margin-right:4px;'>{_uc}</span>"
                   if _uc > 0 else "")
     st.markdown(f"""<div style="
-        background:linear-gradient(180deg,{SURF} 0%,#08121f 100%);
-        border-bottom:1px solid {BDR};
-        padding:13px 22px 11px;margin-bottom:16px;
+        background:linear-gradient(180deg,rgba(11,22,40,.98) 0%,rgba(6,13,26,.98) 100%);
+        border-bottom:1px solid rgba(27,48,80,.6);
+        padding:12px 24px 10px;margin-bottom:14px;
         display:flex;align-items:center;justify-content:space-between;direction:rtl;
-        box-shadow:0 2px 16px rgba(0,0,0,.45);
+        box-shadow:0 1px 24px rgba(0,0,0,.5);
+        backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
     ">
-        <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:1.4rem;">📈</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:34px;height:34px;border-radius:10px;
+                background:linear-gradient(135deg,{CYAN}22,{PUR}18);
+                border:1px solid {CYAN}33;display:flex;align-items:center;
+                justify-content:center;font-size:1.1rem;">📈</div>
             <div>
-                <div style="font-size:1.05rem;font-weight:900;letter-spacing:-.02em;
-                    background:linear-gradient(135deg,{CYAN},{PUR});
+                <div style="font-size:1.0rem;font-weight:900;letter-spacing:-.02em;
+                    background:linear-gradient(135deg,{TX} 30%,{CYAN} 100%);
                     -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
-                    מנתח מניות
+                    מנתח מניות Pro
                 </div>
-                <div style="font-size:.62rem;color:{TX3};margin-top:-1px;">
+                <div style="font-size:.6rem;color:{TX3};margin-top:-1px;letter-spacing:.04em;">
                     {datetime.now().strftime('%d/%m/%Y · %H:%M')}
                 </div>
             </div>
         </div>
         <div style="font-size:.72rem;color:{TX3};direction:rtl;">
-            {badge_html}{'🔔 התראות' if _uc > 0 else ''}
+            {badge_html}{'🔔 התראות חדשות' if _uc > 0 else ''}
         </div>
     </div>""", unsafe_allow_html=True)
 
