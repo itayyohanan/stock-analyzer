@@ -69,31 +69,55 @@ GURU_SEEN_FILE   = "guru_seen.json"
 
 GURUS = [
     {"id": "burry",        "name": "Michael Burry",        "fund": "Scion Asset Management",  "emoji": "🐻",
-     "q": "Michael Burry stock investment"},
-    {"id": "buffett",      "name": "Warren Buffett",        "fund": "Berkshire Hathaway",       "emoji": "🏦",
-     "q": "Warren Buffett Berkshire Hathaway buy sell"},
-    {"id": "musk",         "name": "Elon Musk",             "fund": "Tesla / SpaceX / xAI",     "emoji": "⚡",
-     "q": "Elon Musk Tesla SpaceX investment market"},
-    {"id": "ackman",       "name": "Bill Ackman",           "fund": "Pershing Square",          "emoji": "🎯",
-     "q": "Bill Ackman Pershing Square position"},
-    {"id": "wood",         "name": "Cathie Wood",           "fund": "ARK Invest",               "emoji": "🚀",
-     "q": "Cathie Wood ARK Invest buy sell"},
-    {"id": "dalio",        "name": "Ray Dalio",             "fund": "Bridgewater",              "emoji": "🌊",
-     "q": "Ray Dalio Bridgewater portfolio"},
-    {"id": "druckenmiller","name": "Stanley Druckenmiller", "fund": "Duquesne Family Office",   "emoji": "🦅",
-     "q": "Stanley Druckenmiller Duquesne investment"},
-    {"id": "dimon",        "name": "Jamie Dimon",           "fund": "JPMorgan Chase",           "emoji": "🏛️",
-     "q": "Jamie Dimon JPMorgan economy market outlook"},
-    {"id": "icahn",        "name": "Carl Icahn",            "fund": "Icahn Enterprises",        "emoji": "🦁",
-     "q": "Carl Icahn activist investor position"},
-    {"id": "fink",         "name": "Larry Fink",            "fund": "BlackRock",                "emoji": "🌑",
-     "q": "Larry Fink BlackRock investment market"},
-    {"id": "tepper",       "name": "David Tepper",          "fund": "Appaloosa Management",     "emoji": "🐐",
-     "q": "David Tepper Appaloosa hedge fund"},
-    {"id": "tudor",        "name": "Paul Tudor Jones",      "fund": "Tudor Investment",         "emoji": "🎲",
-     "q": "Paul Tudor Jones Tudor Investment macro"},
-    {"id": "soros",        "name": "George Soros",          "fund": "Soros Fund Management",   "emoji": "♟️",
-     "q": "George Soros fund investment"},
+     "cik": "0001649339", "q": "Michael Burry stock investment"},
+    {"id": "buffett",      "name": "Warren Buffett",       "fund": "Berkshire Hathaway",      "emoji": "🏦",
+     "cik": "0000102909", "q": "Warren Buffett Berkshire Hathaway buy sell"},
+    {"id": "musk",         "name": "Elon Musk",            "fund": "Tesla / SpaceX / xAI",   "emoji": "⚡",
+     "cik": None,         "q": "Elon Musk Tesla SpaceX investment market"},
+    {"id": "ackman",       "name": "Bill Ackman",          "fund": "Pershing Square",         "emoji": "🎯",
+     "cik": "0001336528", "q": "Bill Ackman Pershing Square position"},
+    {"id": "wood",         "name": "Cathie Wood",          "fund": "ARK Invest",              "emoji": "🚀",
+     "cik": "0001579982", "q": "Cathie Wood ARK Invest buy sell"},
+    {"id": "dalio",        "name": "Ray Dalio",            "fund": "Bridgewater",             "emoji": "🌊",
+     "cik": "0001350694", "q": "Ray Dalio Bridgewater portfolio"},
+    {"id": "druckenmiller","name": "Stanley Druckenmiller","fund": "Duquesne Family Office",  "emoji": "🦅",
+     "cik": "0001536411", "q": "Stanley Druckenmiller Duquesne investment"},
+    {"id": "dimon",        "name": "Jamie Dimon",          "fund": "JPMorgan Chase",          "emoji": "🏛️",
+     "cik": None,         "q": "Jamie Dimon JPMorgan economy market outlook"},
+    {"id": "icahn",        "name": "Carl Icahn",           "fund": "Icahn Enterprises",       "emoji": "🦁",
+     "cik": "0000813672", "q": "Carl Icahn activist investor position"},
+    {"id": "fink",         "name": "Larry Fink",           "fund": "BlackRock",               "emoji": "🌑",
+     "cik": None,         "q": "Larry Fink BlackRock investment market"},
+    {"id": "tepper",       "name": "David Tepper",         "fund": "Appaloosa Management",    "emoji": "🐐",
+     "cik": "0001418100", "q": "David Tepper Appaloosa hedge fund"},
+    {"id": "tudor",        "name": "Paul Tudor Jones",     "fund": "Tudor Investment",        "emoji": "🎲",
+     "cik": "0000859001", "q": "Paul Tudor Jones Tudor Investment macro"},
+    {"id": "soros",        "name": "George Soros",         "fund": "Soros Fund Management",  "emoji": "♟️",
+     "cik": "0001029160", "q": "George Soros fund investment"},
+]
+
+# ── Israeli stocks (TASE) ──────────────────────────────────────────────────────
+TASE_UNIVERSE = [
+    {"t":"TEVA.TA",  "n":"טבע תעשיות פרמצבטיות", "s":"פארמה"},
+    {"t":"NICE.TA",  "n":"נייס סיסטמס",           "s":"טכנולוגיה"},
+    {"t":"ICL.TA",   "n":"ICL Group",              "s":"כימיה"},
+    {"t":"ESLT.TA",  "n":"אלביט מערכות",           "s":"ביטחון"},
+    {"t":"CHKP",     "n":"Check Point",            "s":"אבטחת סייבר"},
+    {"t":"MNDY",     "n":"Monday.com",             "s":"תוכנה"},
+    {"t":"GLBE",     "n":"Global-E Online",        "s":"מסחר אלקטרוני"},
+    {"t":"WIX",      "n":"Wix.com",               "s":"תוכנה"},
+    {"t":"FVRR",     "n":"Fiverr",                 "s":"פלטפורמת שירותים"},
+    {"t":"DSGX",     "n":"Descartes Systems",      "s":"לוגיסטיקה"},
+    {"t":"LUMI.TA",  "n":"בנק לאומי",              "s":"בנקאות"},
+    {"t":"DSCT.TA",  "n":"בנק דיסקונט",            "s":"בנקאות"},
+    {"t":"HARL.TA",  "n":"הראל ביטוח",             "s":"ביטוח"},
+    {"t":"MGDL.TA",  "n":"מגדל ביטוח",             "s":"ביטוח"},
+    {"t":"AMOT.TA",  "n":"אמות השקעות",            "s":"נדל\"ן"},
+    {"t":"AZRG.TA",  "n":"עזריאלי גרופ",           "s":"נדל\"ן"},
+    {"t":"PHMD.TA",  "n":"פרמקים",                 "s":"פארמה"},
+    {"t":"ENLT.TA",  "n":"אנלייט אנרגיה",          "s":"אנרגיה ירוקה"},
+    {"t":"SMCH.TA",  "n":"שמחה מובייל",            "s":"תקשורת"},
+    {"t":"BEZQ.TA",  "n":"בזק",                   "s":"תקשורת"},
 ]
 
 # ── Deep-scan universe: 100+ stocks with Hebrew metadata ──────────────────────
@@ -967,6 +991,90 @@ def _run_guru_monitor():
         import json as _j
         _j.dump(list(new_seen)[-500:], f)  # keep last 500
     _add_log("guru", f"סריקת גורו הסתיימה — {new_total} חדשות חדשות")
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _fetch_13f(cik: str) -> list:
+    """Fetch latest 13F-HR holdings from SEC EDGAR. Returns list of holding dicts."""
+    try:
+        import urllib.request as _ur
+        headers = {"User-Agent": "StockAnalyzer itayyohanan91@gmail.com"}
+
+        sub_url = f"https://data.sec.gov/submissions/CIK{cik.zfill(10)}.json"
+        req = _ur.Request(sub_url, headers=headers)
+        with _ur.urlopen(req, timeout=10) as r:
+            sub = json.load(r)
+
+        recent = sub.get("filings", {}).get("recent", {})
+        forms  = recent.get("form", [])
+        accs   = recent.get("accessionNumber", [])
+        dates  = recent.get("filingDate", [])
+
+        acc_no = date_str = None
+        for i, f in enumerate(forms):
+            if f in ("13F-HR", "13F-HR/A"):
+                acc_no   = accs[i]
+                date_str = dates[i]
+                break
+        if not acc_no:
+            return []
+
+        cik_int  = int(cik)
+        acc_path = acc_no.replace("-", "")
+        idx_url  = (f"https://www.sec.gov/Archives/edgar/data/"
+                    f"{cik_int}/{acc_path}/{acc_no}-index.json")
+        req2 = _ur.Request(idx_url, headers=headers)
+        with _ur.urlopen(req2, timeout=10) as r2:
+            idx = json.load(r2)
+
+        xml_file = next(
+            (d["name"] for d in idx.get("directory", {}).get("item", [])
+             if d["name"].endswith(".xml") and "primary_doc" not in d["name"].lower()
+             and "infotable" in d["name"].lower()),
+            None
+        )
+        if not xml_file:
+            xml_file = next(
+                (d["name"] for d in idx.get("directory", {}).get("item", [])
+                 if d["name"].endswith(".xml") and d["name"] != "primary_doc.xml"),
+                None
+            )
+        if not xml_file:
+            return []
+
+        xml_url = (f"https://www.sec.gov/Archives/edgar/data/"
+                   f"{cik_int}/{acc_path}/{xml_file}")
+        req3 = _ur.Request(xml_url, headers=headers)
+        with _ur.urlopen(req3, timeout=15) as r3:
+            xml_data = r3.read()
+
+        import xml.etree.ElementTree as ET
+        ns = {"ns": "http://www.sec.gov/cgi-bin/browse-edgar"}
+        root = ET.fromstring(xml_data)
+
+        holdings = []
+        for info in root.findall(".//{*}infoTable"):
+            name  = (info.findtext("{*}nameOfIssuer") or
+                     info.findtext("nameOfIssuer") or "").strip()
+            val   = (info.findtext("{*}value") or
+                     info.findtext("value") or "0").strip().replace(",","")
+            shs   = (info.findtext(".//{*}sshPrnamt") or
+                     info.findtext(".//sshPrnamt") or "0").strip().replace(",","")
+            cls   = (info.findtext("{*}titleOfClass") or
+                     info.findtext("titleOfClass") or "").strip()
+            try:    val_k = int(val)
+            except: val_k = 0
+            try:    shares = int(shs)
+            except: shares = 0
+            if name and val_k > 0:
+                holdings.append({"name": name, "value_k": val_k,
+                                  "shares": shares, "cls": cls,
+                                  "date": date_str})
+
+        holdings.sort(key=lambda x: x["value_k"], reverse=True)
+        return holdings[:30]
+    except Exception:
+        return []
 
 
 def _ensure_agents():
@@ -1976,8 +2084,8 @@ def _nav():
                 unsafe_allow_html=True)
     else:
         # ── Desktop navigation: button row ────────────────────────────────────
-        _, b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12 = st.columns(
-            [0.4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.35])
+        _, b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13 = st.columns(
+            [0.3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.3])
         with b1:
             if st.button("🏠 ראשי", key="nb_home", use_container_width=True,
                          type="primary" if p == "home" else "secondary"):
@@ -2024,6 +2132,10 @@ def _nav():
                          type="primary" if p == "learn" else "secondary"):
                 st.session_state["page"] = "learn"; st.rerun()
         with b12:
+            if st.button("🇮🇱 ישראל", key="nb_il", use_container_width=True,
+                         type="primary" if p == "israel" else "secondary"):
+                st.session_state["page"] = "israel"; st.rerun()
+        with b13:
             if st.button("📱", key="nb_mob", use_container_width=True,
                          help="החלף למצב נייד"):
                 st.session_state["mobile_mode"] = True; st.rerun()
@@ -3016,7 +3128,7 @@ def _portfolio_analytics(portfolio: list, pf_quotes: dict):
             📊 ניתוח ביצועים
         </div></div>""", unsafe_allow_html=True)
 
-    all_syms = list({h["sym"] for h in portfolio}) + ["SPY"]
+    all_syms = list({h["sym"] for h in portfolio}) + ["SPY", "QQQ", "^TA35.TA"]
 
     with st.spinner("מחשב ביצועי תיק..."):
         hist: dict = {}
@@ -3059,21 +3171,25 @@ def _portfolio_analytics(portfolio: list, pf_quotes: dict):
             line=dict(color=pf_color, width=2.5),
             fill="tozeroy", fillcolor=f"rgba({'34,197,94' if pf_pct[-1]>=0 else '239,68,68'},0.07)",
         ))
-        spy_df = hist.get("SPY")
-        if spy_df is not None and not spy_df.empty:
-            spy_from = spy_df[spy_df.index >= pd.Timestamp(dates[0])]
-            if not spy_from.empty:
-                spy_v   = spy_from["Close"].tolist()
-                spy_pct = [(v / spy_v[0] - 1) * 100 for v in spy_v]
-                fig.add_trace(go.Scatter(
-                    x=[d.date() for d in spy_from.index], y=spy_pct,
-                    name="S&P 500", line=dict(color=TX3, width=1.5, dash="dot"),
-                ))
+        benchmarks = [("SPY","S&P 500",TX3,"dot"),
+                      ("QQQ","נאסד\"ק",PUR,"dash"),
+                      ("^TA35.TA","ת\"א 35",AMB,"dashdot")]
+        for bsym, bname, bcol, bdash in benchmarks:
+            bdf = hist.get(bsym)
+            if bdf is not None and not bdf.empty:
+                bdf2 = bdf[bdf.index >= pd.Timestamp(dates[0])]
+                if not bdf2.empty:
+                    bv   = bdf2["Close"].tolist()
+                    bpct = [(v / bv[0] - 1) * 100 for v in bv]
+                    fig.add_trace(go.Scatter(
+                        x=[d.date() for d in bdf2.index], y=bpct,
+                        name=bname, line=dict(color=bcol, width=1.5, dash=bdash),
+                    ))
         fig.add_hline(y=0, line=dict(color=BDR2, dash="dot", width=1))
         fig.update_layout(
             **{**PB, "height": 290},
             yaxis_ticksuffix="%", yaxis_title="תשואה",
-            title=dict(text="ביצועי תיק מול S&P 500", font=dict(color=TX, size=13), x=0),
+            title=dict(text="ביצועי תיק מול מדדים", font=dict(color=TX, size=13), x=0),
             xaxis_rangeslider_visible=False,
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -3124,6 +3240,53 @@ def page_portfolio():
             fast_price.clear()
             quote.clear()
             st.rerun()
+
+    # ── CSV Import ────────────────────────────────────────────────────────────
+    with st.expander("📥 ייבוא תיק מ-CSV / Excel"):
+        st.markdown(f"""<div style="direction:rtl;color:{TX2};font-size:.8rem;margin-bottom:8px;">
+            העלה קובץ עם עמודות: <b>Ticker, Shares, BuyPrice</b> (ותאריך אופציונלי).
+            ייצוא מ-Interactive Brokers, מיטב, בנק הפועלים וכו' עובד ישירות.</div>""",
+            unsafe_allow_html=True)
+        uploaded = st.file_uploader("בחר קובץ CSV או Excel", type=["csv","xlsx","xls"],
+                                    key="pf_upload", label_visibility="collapsed")
+        if uploaded:
+            try:
+                if uploaded.name.endswith(".csv"):
+                    df_up = pd.read_csv(uploaded)
+                else:
+                    df_up = pd.read_excel(uploaded)
+                # Normalize column names
+                df_up.columns = [c.strip().lower() for c in df_up.columns]
+                col_map = {}
+                for c in df_up.columns:
+                    if c in ("ticker","symbol","sym","מניה","סמול"):  col_map["sym"] = c
+                    if c in ("shares","quantity","כמות","מניות"):     col_map["shares"] = c
+                    if c in ("buyprice","buy_price","price","מחיר","עלות"): col_map["price"] = c
+                    if c in ("date","buydate","buy_date","תאריך"):    col_map["date"] = c
+
+                if "sym" not in col_map or "shares" not in col_map:
+                    st.error("לא נמצאו עמודות Ticker ו-Shares. ודא שהקובץ מכיל אותן.")
+                else:
+                    preview = df_up[[col_map[k] for k in col_map if k in col_map]].head(5)
+                    st.dataframe(preview, use_container_width=True)
+                    if st.button("ייבא לתיק ✓", key="pf_import_btn", type="primary"):
+                        new_holdings = []
+                        for _, row in df_up.iterrows():
+                            sym    = str(row[col_map["sym"]]).upper().strip()
+                            shares = float(row[col_map["shares"]])
+                            price  = float(row[col_map.get("price", col_map["sym"])]) if "price" in col_map else 0.0
+                            date   = str(row[col_map["date"]]) if "date" in col_map else datetime.now().strftime("%Y-%m-%d")
+                            if sym and shares > 0:
+                                new_holdings.append({"sym": sym, "shares": shares,
+                                                     "buy_price": price, "buy_date": date[:10]})
+                        existing = {h["sym"]: h for h in portfolio}
+                        for h in new_holdings:
+                            existing[h["sym"]] = h
+                        save_json(PF_FILE, list(existing.values()))
+                        st.success(f"ייובאו {len(new_holdings)} מניות לתיק!")
+                        st.rerun()
+            except Exception as e:
+                st.error(f"שגיאה בקריאת הקובץ: {e}")
 
     # ── Add holding form ──────────────────────────────────────────────────────
     prefill = st.session_state.pop("pf_prefill", "")
@@ -5197,6 +5360,84 @@ def _live_bar():
     )
 
 
+def _guru_analysis(guru: dict, title: str) -> str:
+    """Generate contextual analysis of a guru's news item."""
+    t   = title.lower()
+    name = guru["name"]
+    fund = guru["fund"]
+
+    # Detect action type
+    if any(w in t for w in ["short", "bet against", "put option", "bearish"]):
+        action = "שורט (הימור על ירידה)"
+        action_reason = "הגורו מהמר שהמניה תרד — הוא קנה אופציות פוט או מכר בחסר"
+    elif any(w in t for w in ["buy", "buys", "purchase", "long", "bullish", "adds", "increased"]):
+        action = "קנייה / הגדלת פוזיציה"
+        action_reason = "הגורו רכש מניות נוספות — הוא מאמין שהמחיר הנוכחי נמוך מהשווי האמיתי"
+    elif any(w in t for w in ["sell", "sells", "sold", "reduce", "exit", "close"]):
+        action = "מכירה / הקטנת פוזיציה"
+        action_reason = "הגורו מוכר — ייתכן שהמחיר הגיע ליעד שלו, או שהתזה השתנתה"
+    elif any(w in t for w in ["warning", "bubble", "crash", "recession", "inflation"]):
+        action = "אזהרה / ניתוח מאקרו"
+        action_reason = "הגורו מפרסם תחזית כלכלית — לא בהכרח מדובר בעסקה ספציפית"
+    else:
+        action = "עדכון / הצהרה"
+        action_reason = "הגורו שיתף עמדה או מידע כללי על השוק"
+
+    # Guru-specific philosophy
+    philosophies = {
+        "burry":   "מייקל ברי ידוע בזיהוי בועות שוק. הוא מחפש חברות מוערכות ביתר ומנסה להרוויח מהנפילה שלהן.",
+        "buffett": "ורן באפט משקיע לטווח ארוך בחברות עם יתרון תחרותי (moat). הוא קונה כשאחרים מוכרים.",
+        "musk":    "אילון מאסק פועל מתוך חזון טכנולוגי ארוך טווח. הצהרותיו משפיעות על השוק לעתים קרובות.",
+        "ackman":  "ביל אקמן אקטיביסט — הוא קונה חלקים גדולים בחברות ולוחץ על שינויי ניהול להעלאת ערך.",
+        "wood":    "קתי ווד מתמקדת בטכנולוגיה מפריעה. היא משקיעה ב-AI, ביו-טק, ורובוטיקה לטווח של 5 שנים+.",
+        "dalio":   "ריי דליו מנהל תיק לפי עקרונות מאקרו. הוא מחלק סיכונים בין נכסים שונים ומגיב לציקלים כלכליים.",
+        "druckenmiller": "סטנלי דרוקנמילר אחד מהמנהלים הטובים בהיסטוריה. הוא ממנף תחזיות מאקרו לעסקאות גדולות.",
+        "icahn":   "קרל אייקן משקיע אקטיביסט — הוא לוחץ על חברות לחלק דיבידנדים, לבצע רכישות עצמיות, או למכור.",
+        "tepper":  "דיוויד טפר ידוע בקניית נכסים במצוקה (distressed). הוא מנצל משברים לרכישה במחיר נמוך.",
+        "tudor":   "פול טיודור ג'ונס מתמחה במסחר טכני ומאקרו. הוא מפורסם בניבוי קריסת 1987.",
+        "soros":   "ג'ורג' סורוס מפורסם בהימורי מאקרו ענקיים, כגון הימור נגד הלירה הבריטית ב-1992.",
+        "dimon":   "ג'יימי דיימון מנכ\"ל JPMorgan — הצהרותיו משקפות את דעת הממסד הפיננסי על כלכלת ארה\"ב.",
+        "fink":    "לארי פינק מנהל את BlackRock, הקרן הגדולה בעולם. עמדותיו משפיעות על זרמי ההון הגלובליים.",
+    }
+    philosophy = philosophies.get(guru["id"], f"{name} מנהל את {fund}.")
+
+    # Detect mentioned stocks/assets
+    stocks_mentioned = []
+    common = {"apple":"AAPL","nvidia":"NVDA","tesla":"TSLA","microsoft":"MSFT",
+               "palantir":"PLTR","amazon":"AMZN","google":"GOOG","meta":"META",
+               "berkshire":"BRK.B","jpmorgan":"JPM","bitcoin":"BTC","gold":"GLD"}
+    for kw, sym in common.items():
+        if kw in t:
+            stocks_mentioned.append(sym)
+
+    stock_line = ""
+    if stocks_mentioned:
+        stock_line = f"\n\n📌 **מניות/נכסים מוזכרים:** {', '.join(stocks_mentioned)}"
+
+    return (f"**פעולה שזוהתה:** {action}\n\n"
+            f"**מה זה אומר:** {action_reason}\n\n"
+            f"**על {name}:** {philosophy}"
+            f"{stock_line}")
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _translate_he(text: str) -> str:
+    """Translate English text to Hebrew via Google Translate free endpoint."""
+    if not text:
+        return text
+    try:
+        import urllib.request as _ur
+        url = (f"https://translate.googleapis.com/translate_a/single"
+               f"?client=gtx&sl=en&tl=iw&dt=t&q={urllib.parse.quote(text)}")
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=5) as r:
+            data = json.load(r)
+        translated = "".join(seg[0] for seg in data[0] if seg[0])
+        return translated if translated else text
+    except Exception:
+        return text
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: GURU TRACKER — גורו טראקר
 # ══════════════════════════════════════════════════════════════════════════════
@@ -5235,80 +5476,248 @@ def page_guru():
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-    # ── Guru selector ─────────────────────────────────────────────────────────
-    guru_names = [f"{g['emoji']} {g['name']}" for g in GURUS]
-    sel_col, _ = st.columns([2, 4])
-    with sel_col:
-        sel = st.selectbox("בחר משקיע", ["📰 כל החדשות"] + guru_names,
-                           key="guru_sel", label_visibility="collapsed")
+    # ── Tabs: חדשות / פוזיציות ────────────────────────────────────────────────
+    tab_news, tab_pos = st.tabs(["📰 חדשות", "🏛️ פוזיציות (13F SEC)"])
 
-    selected_ids = ([g["id"] for g in GURUS] if sel == "📰 כל החדשות"
-                    else [g["id"] for g in GURUS if f"{g['emoji']} {g['name']}" == sel])
-
-    # ── Fetch news (English RSS = fresh & complete) ───────────────────────────
-    rc1, rc2 = st.columns([5, 1])
-    with rc2:
-        refresh = st.button("🔄 רענן", key="guru_refresh", use_container_width=True)
-
-    with st.spinner("מביא עדכונים..."):
-        all_items = []
-        for guru in [g for g in GURUS if g["id"] in selected_ids]:
-            # English RSS → freshest results; after=7d ensures recent articles
-            rss_url = (
-                f"https://news.google.com/rss/search"
-                f"?q={urllib.parse.quote(guru['q'])}"
-                f"&hl=en-US&gl=US&ceid=US:en&tbs=qdr:w"
-            )
-            try:
-                items = _parse_rss(rss_url, guru["name"], max_items=8)
-                for item in items:
-                    item["_guru"] = guru
-                all_items.extend(items)
-            except Exception:
-                pass
-
-    all_items.sort(key=lambda x: x.get("providerPublishTime", 0), reverse=True)
-
-    if not all_items:
-        st.markdown(f"""<div style="text-align:center;padding:50px;color:{TX2};">
-            <div style="font-size:2.5rem;">📭</div>
-            <div style="margin-top:10px;">לא נמצאו חדשות כרגע — נסה ללחוץ רענן.</div>
+    # ════════════════════════ TAB: פוזיציות ════════════════════════════════════
+    with tab_pos:
+        st.markdown(f"""<div style="direction:rtl;color:{TX2};font-size:.82rem;
+            margin-bottom:12px;">
+            נתוני אחזקות מדוחות 13F לרשות ניירות ערך האמריקאית (SEC) — מתעדכן רבעונית
         </div>""", unsafe_allow_html=True)
+
+        gurus_with_cik = [g for g in GURUS if g.get("cik")]
+        pos_names = [f"{g['emoji']} {g['name']}" for g in gurus_with_cik]
+        pg_col, _ = st.columns([2, 4])
+        with pg_col:
+            pos_sel = st.selectbox("בחר משקיע", pos_names,
+                                   key="pos_sel", label_visibility="collapsed")
+
+        sel_guru = next((g for g in gurus_with_cik
+                         if f"{g['emoji']} {g['name']}" == pos_sel), None)
+        if sel_guru:
+            with st.spinner(f"מביא אחזקות {sel_guru['name']} מ-SEC..."):
+                holdings = _fetch_13f(sel_guru["cik"])
+
+            if not holdings:
+                st.info("לא נמצאו נתונים עדכניים — ייתכן שהדיווח הרבעוני טרם הוגש.")
+            else:
+                date_str = holdings[0].get("date", "")
+                total_val = sum(h["value_k"] for h in holdings)
+                st.markdown(f"""<div style="direction:rtl;margin-bottom:10px;">
+                    <span style="color:{TX2};font-size:.8rem;">
+                    דיווח מתאריך: <b style="color:{CYAN};">{date_str}</b> &nbsp;|&nbsp;
+                    סה"כ תיק מדווח: <b style="color:{GRN};">${total_val/1000:,.0f}M</b>
+                    </span></div>""", unsafe_allow_html=True)
+
+                for i, h in enumerate(holdings[:20]):
+                    pct = h["value_k"] / total_val * 100 if total_val else 0
+                    val_m = h["value_k"] / 1000
+                    bar_w = int(pct * 3)
+                    rank_c = GRN if i < 3 else (CYAN if i < 10 else TX2)
+                    st.markdown(f"""
+                    <div style="background:{SURF2};border:1px solid {BDR};
+                         border-radius:8px;padding:10px 14px;margin-bottom:6px;
+                         direction:ltr;">
+                      <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="color:{rank_c};font-weight:800;font-size:.9rem;
+                              min-width:24px;">#{i+1}</span>
+                        <div style="flex:1;">
+                          <div style="font-size:.85rem;font-weight:600;color:{TX};">
+                            {h['name']}</div>
+                          <div style="margin-top:4px;background:{SURF3};border-radius:3px;
+                               height:4px;width:100%;">
+                            <div style="background:{rank_c};height:4px;border-radius:3px;
+                                 width:{min(bar_w,100)}%;"></div>
+                          </div>
+                        </div>
+                        <div style="text-align:right;min-width:100px;">
+                          <div style="color:{GRN};font-weight:700;font-size:.85rem;">
+                            ${val_m:,.1f}M</div>
+                          <div style="color:{TX3};font-size:.72rem;">{pct:.1f}%</div>
+                        </div>
+                      </div>
+                    </div>""", unsafe_allow_html=True)
+
+    # ════════════════════════ TAB: חדשות ═══════════════════════════════════════
+    with tab_news:
+        # ── Guru selector ─────────────────────────────────────────────────────
+        guru_names = [f"{g['emoji']} {g['name']}" for g in GURUS]
+        sel_col, _ = st.columns([2, 4])
+        with sel_col:
+            sel = st.selectbox("בחר משקיע", ["📰 כל החדשות"] + guru_names,
+                               key="guru_sel", label_visibility="collapsed")
+
+        selected_ids = ([g["id"] for g in GURUS] if sel == "📰 כל החדשות"
+                        else [g["id"] for g in GURUS if f"{g['emoji']} {g['name']}" == sel])
+
+        # ── Fetch + translate news ─────────────────────────────────────────
+        rc1, rc2 = st.columns([5, 1])
+        with rc2:
+            st.button("🔄 רענן", key="guru_refresh", use_container_width=True)
+
+        with st.spinner("מביא ומתרגם חדשות..."):
+            all_items = []
+            for guru in [g for g in GURUS if g["id"] in selected_ids]:
+                rss_url = (
+                    f"https://news.google.com/rss/search"
+                    f"?q={urllib.parse.quote(guru['q'])}"
+                    f"&hl=en-US&gl=US&ceid=US:en&tbs=qdr:w"
+                )
+                try:
+                    items = _parse_rss(rss_url, guru["name"], max_items=8)
+                    for item in items:
+                        item["_guru"] = guru
+                    all_items.extend(items)
+                except Exception:
+                    pass
+
+        all_items.sort(key=lambda x: x.get("providerPublishTime", 0), reverse=True)
+
+        if not all_items:
+            st.markdown(f"""<div style="text-align:center;padding:50px;color:{TX2};">
+                <div style="font-size:2.5rem;">📭</div>
+                <div style="margin-top:10px;">לא נמצאו חדשות כרגע — נסה ללחוץ רענן.</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            for item in all_items[:25]:
+                guru    = item["_guru"]
+                title   = item.get("title", "")
+                link    = item.get("link", "#")
+                pub     = item.get("publisher", guru["name"])
+                ts      = item.get("providerPublishTime", 0)
+                ago     = _time_ago(ts) if ts else ""
+                sent_icon, sent_label, sent_c = _sentiment(title)
+                border_c = {"🟢": GRN, "🔴": RED}.get(sent_icon, BDR2)
+                heb_title = _translate_he(title)
+
+                st.markdown(f"""
+                <div style="background:{SURF2};border:1px solid {BDR};
+                     border-right:4px solid {border_c};border-radius:0 12px 12px 0;
+                     padding:12px 16px;margin-bottom:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;
+                              direction:rtl;flex-wrap:wrap;">
+                    <span style="font-size:1.1rem;">{guru['emoji']}</span>
+                    <span style="font-size:.75rem;font-weight:700;color:{CYAN};">{guru['name']}</span>
+                    <span style="font-size:.7rem;color:{TX3};">·</span>
+                    <span style="font-size:.7rem;color:{TX3};">{pub}</span>
+                    <span style="font-size:.7rem;color:{TX3};">·</span>
+                    <span style="font-size:.7rem;color:{TX3};">{ago}</span>
+                    <span style="margin-right:auto;font-size:.7rem;
+                          color:{sent_c};font-weight:600;">{sent_icon} {sent_label}</span>
+                  </div>
+                  <div style="direction:rtl;">
+                    <a href="{link}" target="_blank"
+                       style="color:{TX};font-size:.85rem;font-weight:600;
+                              text-decoration:none;line-height:1.6;">{heb_title}</a>
+                  </div>
+                </div>""", unsafe_allow_html=True)
+
+                item_key = f"analysis_{abs(hash(title)) % 999999}"
+                with st.expander("🧠 ניתוח — למה הגורו עשה את זה?"):
+                    st.markdown(_guru_analysis(guru, title))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: ISRAEL — מניות ישראל
+# ══════════════════════════════════════════════════════════════════════════════
+def page_israel():
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
+        <div style="font-size:1.6rem;font-weight:900;
+            background:linear-gradient(135deg,{GRN} 0%,{CYAN} 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+            🇮🇱 מניות ישראל
+        </div>
+        <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
+            מניות ישראליות — בורסת תל אביב ודואל-ליסטינג בנאסד"ק
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    with st.spinner("סורק מניות ישראל..."):
+        results = []
+        def _fetch_il(stock):
+            q = _agent_quote(stock["t"])
+            if q:
+                q["sym"]  = stock["t"]
+                q["name"] = stock["n"]
+                q["sec"]  = stock["s"]
+            return q
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+            futs = {ex.submit(_fetch_il, s): s for s in TASE_UNIVERSE}
+            for fut in concurrent.futures.as_completed(futs):
+                try:
+                    r = fut.result()
+                    if r and r.get("price"):
+                        results.append(r)
+                except Exception:
+                    pass
+
+    results.sort(key=lambda x: abs(x.get("chg", 0)), reverse=True)
+
+    if not results:
+        st.info("לא ניתן לטעון נתונים כרגע — נסה שוב בעוד מספר דקות.")
         return
 
-    for item in all_items[:25]:
-        guru    = item["_guru"]
-        title   = item.get("title", "")
-        link    = item.get("link", "#")
-        pub     = item.get("publisher", guru["name"])
-        ts      = item.get("providerPublishTime", 0)
-        ago     = _time_ago(ts) if ts else ""
-        sent_icon, sent_label, sent_c = _sentiment(title)
-        border_c = {"🟢": GRN, "🔴": RED}.get(sent_icon, BDR2)
+    # Summary bar
+    gainers = sum(1 for r in results if r.get("chg", 0) > 0)
+    losers  = sum(1 for r in results if r.get("chg", 0) < 0)
+    sc1, sc2, sc3 = st.columns(3)
+    with sc1:
+        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+            border-radius:10px;padding:12px;text-align:center;direction:rtl;">
+            <div style="color:{GRN};font-size:1.3rem;font-weight:800;">{gainers}</div>
+            <div style="color:{TX2};font-size:.75rem;">עולות</div></div>""",
+            unsafe_allow_html=True)
+    with sc2:
+        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+            border-radius:10px;padding:12px;text-align:center;direction:rtl;">
+            <div style="color:{RED};font-size:1.3rem;font-weight:800;">{losers}</div>
+            <div style="color:{TX2};font-size:.75rem;">יורדות</div></div>""",
+            unsafe_allow_html=True)
+    with sc3:
+        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+            border-radius:10px;padding:12px;text-align:center;direction:rtl;">
+            <div style="color:{CYAN};font-size:1.3rem;font-weight:800;">{len(results)}</div>
+            <div style="color:{TX2};font-size:.75rem;">מניות</div></div>""",
+            unsafe_allow_html=True)
 
-        st.markdown(f"""
-        <div style="background:{SURF2};border:1px solid {BDR};
-             border-left:4px solid {border_c};border-radius:12px 0 0 12px;
-             padding:12px 16px;margin-bottom:8px;">
-          <!-- top row: emoji + guru name + time -->
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;
-                      direction:rtl;flex-wrap:wrap;">
-            <span style="font-size:1.1rem;">{guru['emoji']}</span>
-            <span style="font-size:.75rem;font-weight:700;color:{CYAN};">{guru['name']}</span>
-            <span style="font-size:.7rem;color:{TX3};">·</span>
-            <span style="font-size:.7rem;color:{TX3};">{pub}</span>
-            <span style="font-size:.7rem;color:{TX3};">·</span>
-            <span style="font-size:.7rem;color:{TX3};">{ago}</span>
-            <span style="margin-right:auto;font-size:.7rem;color:{sent_c};font-weight:600;">
-              {sent_icon} {sent_label}</span>
-          </div>
-          <!-- title: LTR for English -->
-          <div style="direction:ltr;unicode-bidi:isolate;">
-            <a href="{link}" target="_blank"
-               style="color:{TX};font-size:.85rem;font-weight:600;
-                      text-decoration:none;line-height:1.55;">{title}</a>
-          </div>
-        </div>""", unsafe_allow_html=True)
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    cols = st.columns(3)
+    for i, r in enumerate(results):
+        chg   = r.get("chg", 0)
+        price = r.get("price", 0)
+        rsi   = r.get("rsi", 50)
+        c     = GRN if chg >= 0 else RED
+        sym   = r["sym"]
+        is_tase = sym.endswith(".TA")
+        currency = "₪" if is_tase else "$"
+        rsi_c = RED if rsi > 70 else (GRN if rsi < 30 else AMB)
+
+        with cols[i % 3]:
+            st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+                border-top:3px solid {c};border-radius:12px;padding:14px;
+                margin-bottom:10px;direction:rtl;cursor:pointer;"
+                onclick="void(0)">
+                <div style="font-size:.7rem;color:{TX3};margin-bottom:2px;">{r.get('sec','')}</div>
+                <div style="font-size:.85rem;font-weight:800;color:{TX};">{r['name']}</div>
+                <div style="font-size:.7rem;color:{TX3};margin-bottom:8px;">{sym}</div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                  <span style="font-size:1.15rem;font-weight:700;color:{TX};">
+                    {currency}{price:,.2f}</span>
+                  <span style="font-size:.85rem;font-weight:700;color:{c};">
+                    {'▲' if chg>=0 else '▼'}{abs(chg):.2f}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:6px;">
+                  <span style="font-size:.7rem;color:{TX3};">RSI</span>
+                  <span style="font-size:.75rem;font-weight:700;color:{rsi_c};">{rsi:.0f}</span>
+                </div>
+            </div>""", unsafe_allow_html=True)
+            if st.button("📊 נתח", key=f"il_{sym}", use_container_width=True):
+                st.session_state["page"]       = "home"
+                st.session_state["search_sym"] = sym
+                st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -5614,6 +6023,7 @@ if   _page == "home":      page_home()
 elif _page == "portfolio": page_portfolio()
 elif _page == "watchlist": page_watchlist()
 elif _page == "guru":      page_guru()
+elif _page == "israel":    page_israel()
 elif _page == "screener":  page_screener()
 elif _page == "earnings":  page_earnings()
 elif _page == "alerts":    page_alerts()
