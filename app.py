@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import json, os, time, concurrent.futures, threading
+import json, os, time, concurrent.futures, threading, urllib.parse
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
@@ -764,12 +764,18 @@ def _run_deep_scanner():
     batch_size = 10
     for i in range(0, len(universe), batch_size):
         batch = universe[i:i + batch_size]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=batch_size) as ex:
-            futures = {ex.submit(_deep_scan_stock, m["t"], m): m for m in batch}
-            for fut in concurrent.futures.as_completed(futures):
-                r = fut.result()
-                if r:
-                    found.append(r)
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=batch_size) as ex:
+                futures = {ex.submit(_deep_scan_stock, m["t"], m): m for m in batch}
+                for fut in concurrent.futures.as_completed(futures):
+                    try:
+                        r = fut.result()
+                        if r:
+                            found.append(r)
+                    except Exception:
+                        pass
+        except RuntimeError:
+            return  # interpreter shutting down during Streamlit reload
         time.sleep(1.5)
 
     found.sort(key=lambda x: x["score"], reverse=True)
@@ -892,7 +898,7 @@ def _send_telegram(message: str):
     if not token or not chat_id:
         return
     try:
-        import urllib.request, urllib.parse
+        import urllib.request
         url  = f"https://api.telegram.org/bot{token}/sendMessage"
         data = urllib.parse.urlencode(
             {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
@@ -910,15 +916,10 @@ def _run_guru_monitor():
     new_total = 0
 
     for guru in GURUS:
-        rss_url = (
-            f"https://news.google.com/rss/search"
-            f"?q={urllib.parse.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
-        )
         try:
-            import urllib.parse as _up
             rss_url = (
                 f"https://news.google.com/rss/search"
-                f"?q={_up.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
+                f"?q={urllib.parse.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
             )
             items = _parse_rss(rss_url, guru["name"], max_items=5)
             for item in items:
