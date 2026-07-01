@@ -5249,7 +5249,7 @@ def page_guru():
         for guru in [g for g in GURUS if g["id"] in selected_ids]:
             rss_url = (
                 f"https://news.google.com/rss/search"
-                f"?q={_up.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
+                f"?q={urllib.parse.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
             )
             try:
                 items = _parse_rss(rss_url, guru["name"], max_items=8)
@@ -5259,7 +5259,7 @@ def page_guru():
             except Exception:
                 pass
 
-    all_items.sort(key=lambda x: x.get("ts", 0), reverse=True)
+    all_items.sort(key=lambda x: x.get("providerPublishTime", 0), reverse=True)
 
     if not all_items:
         st.markdown(f"""<div style="text-align:center;padding:50px;color:{TX2};">
@@ -5273,9 +5273,9 @@ def page_guru():
         title   = item.get("title", "")
         link    = item.get("link", "#")
         pub     = item.get("publisher", "")
-        ts      = item.get("ts", 0)
+        ts      = item.get("providerPublishTime", 0)
         ago     = _time_ago(ts) if ts else ""
-        sent, sent_c = _sentiment(title)
+        sent_icon, sent_label, sent_c = _sentiment(title)
 
         st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
             border-right:4px solid {guru['emoji'] and AMB};
@@ -5292,7 +5292,7 @@ def page_guru():
                             {guru['name']}</span>
                         <span style="font-size:.7rem;color:{TX3};">{pub}</span>
                         <span style="font-size:.7rem;color:{TX3};">{ago}</span>
-                        <span style="font-size:.7rem;color:{sent_c};font-weight:600;">{sent}</span>
+                        <span style="font-size:.7rem;color:{sent_c};font-weight:600;">{sent_icon} {sent_label}</span>
                     </div>
                 </div>
             </div>
