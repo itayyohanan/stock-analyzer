@@ -919,7 +919,7 @@ def _run_guru_monitor():
         try:
             rss_url = (
                 f"https://news.google.com/rss/search"
-                f"?q={urllib.parse.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
+                f"?q={urllib.parse.quote(guru['q'])}&hl=iw&gl=IL&ceid=IL:iw"
             )
             items = _parse_rss(rss_url, guru["name"], max_items=5)
             for item in items:
@@ -5185,8 +5185,6 @@ def _live_bar():
 # PAGE: GURU TRACKER — גורו טראקר
 # ══════════════════════════════════════════════════════════════════════════════
 def page_guru():
-    import urllib.parse as _up
-
     st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
         <div style="font-size:1.6rem;font-weight:900;
             background:linear-gradient(135deg,{AMB} 0%,{CYAN} 100%);
@@ -5198,38 +5196,26 @@ def page_guru():
         </div>
     </div>""", unsafe_allow_html=True)
 
-    # ── Telegram setup card ───────────────────────────────────────────────────
+    # ── Telegram status bar ───────────────────────────────────────────────────
     cfg = _telegram_cfg()
-    with st.expander("📱 הגדרות Telegram — קבל התראות לטלפון", expanded=not cfg.get("token")):
-        st.markdown(f"""<div style="background:{SURF2};border-radius:10px;
-            padding:14px 18px;margin-bottom:14px;direction:rtl;font-size:.83rem;color:{TX2};">
-            <b style="color:{TX};">איך מגדירים (פעם אחת — 3 דקות):</b><br><br>
-            1️⃣ פתח Telegram וחפש <b>@BotFather</b><br>
-            2️⃣ שלח <code>/newbot</code> ← תן שם לבוט ← קבל <b>Token</b><br>
-            3️⃣ שלח הודעה כלשהי לבוט החדש שיצרת<br>
-            4️⃣ בקר ב: <code>api.telegram.org/bot&#60;TOKEN&#62;/getUpdates</code> ← העתק את ה-<b>chat id</b><br>
-            5️⃣ הזן כאן ← שמור ← תתחיל לקבל התראות 🎉
-        </div>""", unsafe_allow_html=True)
-
-        tc1, tc2, tc3 = st.columns([2, 2, 0.8])
-        with tc1:
-            new_token = st.text_input("Bot Token", value=cfg.get("token",""),
-                                      placeholder="123456789:AAF...", key="tg_token")
-        with tc2:
-            new_chat  = st.text_input("Chat ID", value=cfg.get("chat_id",""),
-                                      placeholder="123456789", key="tg_chat")
-        with tc3:
-            st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
-            if st.button("שמור ✓", key="tg_save", type="primary", use_container_width=True):
-                save_json(TELEGRAM_FILE, {"token": new_token.strip(),
-                                          "chat_id": new_chat.strip()})
-                _send_telegram("✅ <b>מנתח מניות</b>\nהתראות Telegram הופעלו בהצלחה! 🚀")
-                st.success("נשמר! נשלחה הודעת בדיקה לטלפון שלך.")
-                st.rerun()
-
+    tg_col, inp_col = st.columns([1, 3])
+    with tg_col:
         if cfg.get("token"):
-            st.markdown(f"<div style='color:{GRN};font-size:.8rem;direction:rtl;'>"
-                        f"✅ Telegram מחובר</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='color:{GRN};font-size:.82rem;padding-top:8px;direction:rtl;'>"
+                        f"📱 Telegram מחובר ✅</div>", unsafe_allow_html=True)
+        else:
+            with st.expander("📱 חבר Telegram"):
+                tc1, tc2, tc3 = st.columns([2, 2, 0.8])
+                with tc1:
+                    new_token = st.text_input("Bot Token", value="", placeholder="123456789:AAF...", key="tg_token")
+                with tc2:
+                    new_chat  = st.text_input("Chat ID",   value="", placeholder="123456789",       key="tg_chat")
+                with tc3:
+                    st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
+                    if st.button("שמור", key="tg_save", type="primary", use_container_width=True):
+                        save_json(TELEGRAM_FILE, {"token": new_token.strip(), "chat_id": new_chat.strip()})
+                        _send_telegram("✅ <b>מנתח מניות</b>\nהתראות Telegram הופעלו! 🚀")
+                        st.rerun()
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
@@ -5249,7 +5235,7 @@ def page_guru():
         for guru in [g for g in GURUS if g["id"] in selected_ids]:
             rss_url = (
                 f"https://news.google.com/rss/search"
-                f"?q={urllib.parse.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
+                f"?q={urllib.parse.quote(guru['q'])}&hl=iw&gl=IL&ceid=IL:iw"
             )
             try:
                 items = _parse_rss(rss_url, guru["name"], max_items=8)
