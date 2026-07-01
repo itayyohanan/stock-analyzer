@@ -5245,13 +5245,19 @@ def page_guru():
     selected_ids = ([g["id"] for g in GURUS] if sel == "📰 כל החדשות"
                     else [g["id"] for g in GURUS if f"{g['emoji']} {g['name']}" == sel])
 
-    # ── Fetch news for selected gurus ─────────────────────────────────────────
+    # ── Fetch news (English RSS = fresh & complete) ───────────────────────────
+    rc1, rc2 = st.columns([5, 1])
+    with rc2:
+        refresh = st.button("🔄 רענן", key="guru_refresh", use_container_width=True)
+
     with st.spinner("מביא עדכונים..."):
         all_items = []
         for guru in [g for g in GURUS if g["id"] in selected_ids]:
+            # English RSS → freshest results; after=7d ensures recent articles
             rss_url = (
                 f"https://news.google.com/rss/search"
-                f"?q={urllib.parse.quote(guru['q'])}&hl=iw&gl=IL&ceid=IL:iw"
+                f"?q={urllib.parse.quote(guru['q'])}"
+                f"&hl=en-US&gl=US&ceid=US:en&tbs=qdr:w"
             )
             try:
                 items = _parse_rss(rss_url, guru["name"], max_items=8)
@@ -5266,38 +5272,42 @@ def page_guru():
     if not all_items:
         st.markdown(f"""<div style="text-align:center;padding:50px;color:{TX2};">
             <div style="font-size:2.5rem;">📭</div>
-            <div style="margin-top:10px;">לא נמצאו חדשות כרגע. נסה שוב בעוד מספר דקות.</div>
+            <div style="margin-top:10px;">לא נמצאו חדשות כרגע — נסה ללחוץ רענן.</div>
         </div>""", unsafe_allow_html=True)
         return
 
-    for item in all_items[:20]:
+    for item in all_items[:25]:
         guru    = item["_guru"]
         title   = item.get("title", "")
         link    = item.get("link", "#")
-        pub     = item.get("publisher", "")
+        pub     = item.get("publisher", guru["name"])
         ts      = item.get("providerPublishTime", 0)
         ago     = _time_ago(ts) if ts else ""
         sent_icon, sent_label, sent_c = _sentiment(title)
+        border_c = {"🟢": GRN, "🔴": RED}.get(sent_icon, BDR2)
 
-        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-            border-right:4px solid {guru['emoji'] and AMB};
-            border-radius:0 12px 12px 0;padding:14px 18px;margin-bottom:8px;
-            direction:ltr;">
-            <div style="display:flex;align-items:flex-start;gap:10px;">
-                <div style="font-size:1.4rem;line-height:1;">{guru['emoji']}</div>
-                <div style="flex:1;">
-                    <a href="{link}" target="_blank"
-                       style="color:{TX};font-size:.86rem;font-weight:600;
-                              text-decoration:none;line-height:1.5;">{title}</a>
-                    <div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;">
-                        <span style="font-size:.7rem;color:{CYAN};font-weight:700;">
-                            {guru['name']}</span>
-                        <span style="font-size:.7rem;color:{TX3};">{pub}</span>
-                        <span style="font-size:.7rem;color:{TX3};">{ago}</span>
-                        <span style="font-size:.7rem;color:{sent_c};font-weight:600;">{sent_icon} {sent_label}</span>
-                    </div>
-                </div>
-            </div>
+        st.markdown(f"""
+        <div style="background:{SURF2};border:1px solid {BDR};
+             border-left:4px solid {border_c};border-radius:12px 0 0 12px;
+             padding:12px 16px;margin-bottom:8px;">
+          <!-- top row: emoji + guru name + time -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;
+                      direction:rtl;flex-wrap:wrap;">
+            <span style="font-size:1.1rem;">{guru['emoji']}</span>
+            <span style="font-size:.75rem;font-weight:700;color:{CYAN};">{guru['name']}</span>
+            <span style="font-size:.7rem;color:{TX3};">·</span>
+            <span style="font-size:.7rem;color:{TX3};">{pub}</span>
+            <span style="font-size:.7rem;color:{TX3};">·</span>
+            <span style="font-size:.7rem;color:{TX3};">{ago}</span>
+            <span style="margin-right:auto;font-size:.7rem;color:{sent_c};font-weight:600;">
+              {sent_icon} {sent_label}</span>
+          </div>
+          <!-- title: LTR for English -->
+          <div style="direction:ltr;unicode-bidi:isolate;">
+            <a href="{link}" target="_blank"
+               style="color:{TX};font-size:.85rem;font-weight:600;
+                      text-decoration:none;line-height:1.55;">{title}</a>
+          </div>
         </div>""", unsafe_allow_html=True)
 
 
