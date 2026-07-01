@@ -10,3 +10,5 @@ agent_state.json
 notifications.json
 agent_logs.json
 .streamlit/secrets.toml
+telegram_config.json
+guru_seen.json

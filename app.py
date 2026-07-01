@@ -62,8 +62,23 @@ HOT = [
 ]
 
 PF_FILE = "portfolio.json"
-WL_FILE     = "watchlist.json"
-ALERTS_FILE = "alerts.json"
+WL_FILE          = "watchlist.json"
+ALERTS_FILE      = "alerts.json"
+TELEGRAM_FILE    = "telegram_config.json"
+GURU_SEEN_FILE   = "guru_seen.json"
+
+GURUS = [
+    {"id": "burry",   "name": "Michael Burry",  "fund": "Scion Asset Management", "emoji": "🐻",
+     "q": "Michael Burry stock investment"},
+    {"id": "buffett", "name": "Warren Buffett",  "fund": "Berkshire Hathaway",     "emoji": "🏦",
+     "q": "Warren Buffett Berkshire Hathaway buy sell"},
+    {"id": "ackman",  "name": "Bill Ackman",     "fund": "Pershing Square",        "emoji": "🎯",
+     "q": "Bill Ackman Pershing Square position"},
+    {"id": "wood",    "name": "Cathie Wood",     "fund": "ARK Invest",             "emoji": "🚀",
+     "q": "Cathie Wood ARK Invest buy sell"},
+    {"id": "dalio",   "name": "Ray Dalio",       "fund": "Bridgewater",            "emoji": "🌊",
+     "q": "Ray Dalio Bridgewater portfolio"},
+]
 
 # ── Deep-scan universe: 100+ stocks with Hebrew metadata ──────────────────────
 # Fields: t=ticker, n=name, s=sector(Hebrew), d=description(Hebrew), u=why-under-radar
@@ -861,14 +876,91 @@ def _agent_loop(name: str, fn, interval_min: int):
                 _add_log(name, f"שגיאה: {str(exc)[:120]}")
         time.sleep(interval_min * 60)
 
+# ── Telegram helper ───────────────────────────────────────────────────────────
+def _telegram_cfg() -> dict:
+    try:
+        if os.path.exists(TELEGRAM_FILE):
+            return load_json(TELEGRAM_FILE)
+    except Exception:
+        pass
+    return {}
+
+def _send_telegram(message: str):
+    cfg = _telegram_cfg()
+    token   = cfg.get("token", "")
+    chat_id = cfg.get("chat_id", "")
+    if not token or not chat_id:
+        return
+    try:
+        import urllib.request, urllib.parse
+        url  = f"https://api.telegram.org/bot{token}/sendMessage"
+        data = urllib.parse.urlencode(
+            {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+        ).encode()
+        req = urllib.request.Request(url, data=data)
+        urllib.request.urlopen(req, timeout=8)
+    except Exception:
+        pass
+
+# ── Guru Monitor agent ────────────────────────────────────────────────────────
+def _run_guru_monitor():
+    seen_list = load_json(GURU_SEEN_FILE) if os.path.exists(GURU_SEEN_FILE) else []
+    seen      = set(seen_list)
+    new_seen  = set(seen)
+    new_total = 0
+
+    for guru in GURUS:
+        rss_url = (
+            f"https://news.google.com/rss/search"
+            f"?q={urllib.parse.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
+        )
+        try:
+            import urllib.parse as _up
+            rss_url = (
+                f"https://news.google.com/rss/search"
+                f"?q={_up.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
+            )
+            items = _parse_rss(rss_url, guru["name"], max_items=5)
+            for item in items:
+                uid = (item.get("link") or item.get("title") or "")[:100]
+                if uid in seen:
+                    continue
+                new_seen.add(uid)
+                title = item.get("title", "")
+                if not title:
+                    continue
+                link = item.get("link", "")
+                _add_notification(
+                    "guru",
+                    f"{guru['emoji']} {guru['name']}",
+                    title, "info",
+                    f"guru_{hash(uid) & 0xFFFFFF}",
+                )
+                _link_tag = f'<a href="{link}">קרא עוד</a>' if link else ""
+                _send_telegram(
+                    f"{guru['emoji']} <b>{guru['name']}</b>\n"
+                    f"{title}\n"
+                    f"{_link_tag}"
+                )
+                new_total += 1
+        except Exception as e:
+            _add_log("guru", f"שגיאה ב-{guru['name']}: {str(e)[:60]}")
+
+    with open(GURU_SEEN_FILE, "w", encoding="utf-8") as f:
+        import json as _j
+        _j.dump(list(new_seen)[-500:], f)  # keep last 500
+    _add_log("guru", f"סריקת גורו הסתיימה — {new_total} חדשות חדשות")
+
+
 def _ensure_agents():
     """Restart any dead agent thread. Called on every page render."""
     state = _load_agent_state()
     scanner_interval = int(state.get("scanner_interval", 30))
     defs = [
-        ("monitor", _run_monitor,      30),
-        ("scanner", _run_deep_scanner, scanner_interval),
-        ("news",    _run_news_agent,   15),
+        ("monitor", _run_monitor,       30),
+        ("scanner", _run_deep_scanner,  scanner_interval),
+        ("news",    _run_news_agent,    15),
+        ("guru",    _run_guru_monitor,  15),
     ]
     for name, fn, interval in defs:
         if not state.get(name, {}).get("enabled", True):
@@ -1867,8 +1959,8 @@ def _nav():
                 unsafe_allow_html=True)
     else:
         # ── Desktop navigation: button row ────────────────────────────────────
-        _, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11 = st.columns(
-            [0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.4])
+        _, b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12 = st.columns(
+            [0.4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.35])
         with b1:
             if st.button("🏠 ראשי", key="nb_home", use_container_width=True,
                          type="primary" if p == "home" else "secondary"):
@@ -1882,35 +1974,39 @@ def _nav():
                          type="primary" if p == "watchlist" else "secondary"):
                 st.session_state["page"] = "watchlist"; st.rerun()
         with b4:
+            if st.button("🏆 גורו", key="nb_guru", use_container_width=True,
+                         type="primary" if p == "guru" else "secondary"):
+                st.session_state["page"] = "guru"; st.rerun()
+        with b5:
             if st.button("🔍 סורק", key="nb_sc", use_container_width=True,
                          type="primary" if p == "screener" else "secondary"):
                 st.session_state["page"] = "screener"; st.rerun()
-        with b5:
+        with b6:
             if st.button("📅 דוחות", key="nb_earn", use_container_width=True,
                          type="primary" if p == "earnings" else "secondary"):
                 st.session_state["page"] = "earnings"; st.rerun()
-        with b6:
+        with b7:
             if st.button("🔔 התראות", key="nb_al", use_container_width=True,
                          type="primary" if p == "alerts" else "secondary"):
                 st.session_state["page"] = "alerts"; st.rerun()
-        with b7:
+        with b8:
             if st.button("⚖️ השוואה", key="nb_cmp", use_container_width=True,
                          type="primary" if p == "compare" else "secondary"):
                 st.session_state["page"] = "compare"; st.rerun()
-        with b8:
+        with b9:
             if st.button("📰 חדשות", key="nb_news", use_container_width=True,
                          type="primary" if p == "news" else "secondary"):
                 st.session_state["page"] = "news"; st.rerun()
-        with b9:
+        with b10:
             _ag_lbl = f"🤖 סוכנים 🔴{_uc}" if _uc > 0 else "🤖 סוכנים"
             if st.button(_ag_lbl, key="nb_agents", use_container_width=True,
                          type="primary" if p == "agents" else "secondary"):
                 st.session_state["page"] = "agents"; st.rerun()
-        with b10:
+        with b11:
             if st.button("📚 למד", key="nb_learn", use_container_width=True,
                          type="primary" if p == "learn" else "secondary"):
                 st.session_state["page"] = "learn"; st.rerun()
-        with b11:
+        with b12:
             if st.button("📱", key="nb_mob", use_container_width=True,
                          help="החלף למצב נייד"):
                 st.session_state["mobile_mode"] = True; st.rerun()
@@ -5085,6 +5181,124 @@ def _live_bar():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PAGE: GURU TRACKER — גורו טראקר
+# ══════════════════════════════════════════════════════════════════════════════
+def page_guru():
+    import urllib.parse as _up
+
+    st.markdown(f"""<div style="direction:rtl;padding-bottom:16px;">
+        <div style="font-size:1.6rem;font-weight:900;
+            background:linear-gradient(135deg,{AMB} 0%,{CYAN} 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+            🏆 גורו טראקר
+        </div>
+        <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
+            עדכוני חדשות על המשקיעים הגדולים בעולם — מתעדכן כל 15 דקות
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Telegram setup card ───────────────────────────────────────────────────
+    cfg = _telegram_cfg()
+    with st.expander("📱 הגדרות Telegram — קבל התראות לטלפון", expanded=not cfg.get("token")):
+        st.markdown(f"""<div style="background:{SURF2};border-radius:10px;
+            padding:14px 18px;margin-bottom:14px;direction:rtl;font-size:.83rem;color:{TX2};">
+            <b style="color:{TX};">איך מגדירים (פעם אחת — 3 דקות):</b><br><br>
+            1️⃣ פתח Telegram וחפש <b>@BotFather</b><br>
+            2️⃣ שלח <code>/newbot</code> ← תן שם לבוט ← קבל <b>Token</b><br>
+            3️⃣ שלח הודעה כלשהי לבוט החדש שיצרת<br>
+            4️⃣ בקר ב: <code>api.telegram.org/bot&#60;TOKEN&#62;/getUpdates</code> ← העתק את ה-<b>chat id</b><br>
+            5️⃣ הזן כאן ← שמור ← תתחיל לקבל התראות 🎉
+        </div>""", unsafe_allow_html=True)
+
+        tc1, tc2, tc3 = st.columns([2, 2, 0.8])
+        with tc1:
+            new_token = st.text_input("Bot Token", value=cfg.get("token",""),
+                                      placeholder="123456789:AAF...", key="tg_token")
+        with tc2:
+            new_chat  = st.text_input("Chat ID", value=cfg.get("chat_id",""),
+                                      placeholder="123456789", key="tg_chat")
+        with tc3:
+            st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
+            if st.button("שמור ✓", key="tg_save", type="primary", use_container_width=True):
+                save_json(TELEGRAM_FILE, {"token": new_token.strip(),
+                                          "chat_id": new_chat.strip()})
+                _send_telegram("✅ <b>מנתח מניות</b>\nהתראות Telegram הופעלו בהצלחה! 🚀")
+                st.success("נשמר! נשלחה הודעת בדיקה לטלפון שלך.")
+                st.rerun()
+
+        if cfg.get("token"):
+            st.markdown(f"<div style='color:{GRN};font-size:.8rem;direction:rtl;'>"
+                        f"✅ Telegram מחובר</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    # ── Guru selector ─────────────────────────────────────────────────────────
+    guru_names = [f"{g['emoji']} {g['name']}" for g in GURUS]
+    sel_col, _ = st.columns([2, 4])
+    with sel_col:
+        sel = st.selectbox("בחר משקיע", ["📰 כל החדשות"] + guru_names,
+                           key="guru_sel", label_visibility="collapsed")
+
+    selected_ids = ([g["id"] for g in GURUS] if sel == "📰 כל החדשות"
+                    else [g["id"] for g in GURUS if f"{g['emoji']} {g['name']}" == sel])
+
+    # ── Fetch news for selected gurus ─────────────────────────────────────────
+    with st.spinner("מביא עדכונים..."):
+        all_items = []
+        for guru in [g for g in GURUS if g["id"] in selected_ids]:
+            rss_url = (
+                f"https://news.google.com/rss/search"
+                f"?q={_up.quote(guru['q'])}&hl=en&gl=US&ceid=US:en"
+            )
+            try:
+                items = _parse_rss(rss_url, guru["name"], max_items=8)
+                for item in items:
+                    item["_guru"] = guru
+                all_items.extend(items)
+            except Exception:
+                pass
+
+    all_items.sort(key=lambda x: x.get("ts", 0), reverse=True)
+
+    if not all_items:
+        st.markdown(f"""<div style="text-align:center;padding:50px;color:{TX2};">
+            <div style="font-size:2.5rem;">📭</div>
+            <div style="margin-top:10px;">לא נמצאו חדשות כרגע. נסה שוב בעוד מספר דקות.</div>
+        </div>""", unsafe_allow_html=True)
+        return
+
+    for item in all_items[:20]:
+        guru    = item["_guru"]
+        title   = item.get("title", "")
+        link    = item.get("link", "#")
+        pub     = item.get("publisher", "")
+        ts      = item.get("ts", 0)
+        ago     = _time_ago(ts) if ts else ""
+        sent, sent_c = _sentiment(title)
+
+        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+            border-right:4px solid {guru['emoji'] and AMB};
+            border-radius:0 12px 12px 0;padding:14px 18px;margin-bottom:8px;
+            direction:ltr;">
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+                <div style="font-size:1.4rem;line-height:1;">{guru['emoji']}</div>
+                <div style="flex:1;">
+                    <a href="{link}" target="_blank"
+                       style="color:{TX};font-size:.86rem;font-weight:600;
+                              text-decoration:none;line-height:1.5;">{title}</a>
+                    <div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;">
+                        <span style="font-size:.7rem;color:{CYAN};font-weight:700;">
+                            {guru['name']}</span>
+                        <span style="font-size:.7rem;color:{TX3};">{pub}</span>
+                        <span style="font-size:.7rem;color:{TX3};">{ago}</span>
+                        <span style="font-size:.7rem;color:{sent_c};font-weight:600;">{sent}</span>
+                    </div>
+                </div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE: SCREENER — סורק טכני
 # ══════════════════════════════════════════════════════════════════════════════
 def page_screener():
@@ -5386,6 +5600,7 @@ _page = st.session_state["page"]
 if   _page == "home":      page_home()
 elif _page == "portfolio": page_portfolio()
 elif _page == "watchlist": page_watchlist()
+elif _page == "guru":      page_guru()
 elif _page == "screener":  page_screener()
 elif _page == "earnings":  page_earnings()
 elif _page == "alerts":    page_alerts()
