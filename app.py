@@ -5917,133 +5917,360 @@ def page_israel():
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: SCREENER — סורק טכני
 # ══════════════════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=1800, show_spinner=False)
+def _fetch_analyst_rec(sym: str) -> dict | None:
+    try:
+        info = yf.Ticker(sym).info
+        rec  = (info.get("recommendationKey") or "").lower().strip()
+        if not rec or rec == "none":
+            return None
+        return {
+            "sym":      sym,
+            "rec":      rec,
+            "mean":     info.get("recommendationMean"),
+            "analysts": info.get("numberOfAnalystOpinions", 0) or 0,
+            "price":    info.get("currentPrice") or info.get("regularMarketPrice") or 0,
+            "chg":      round((info.get("regularMarketChangePercent") or 0) * 100, 2),
+            "name":     info.get("shortName") or sym,
+            "sector":   info.get("sector") or "—",
+            "target":   info.get("targetMeanPrice"),
+            "mcap":     info.get("marketCap"),
+        }
+    except Exception:
+        return None
+
+
+def _rec_label_he(rec: str) -> tuple[str, str]:
+    """Returns (Hebrew label, color)"""
+    return {
+        "strong_buy":    ("קנייה חזקה",  GRN),
+        "buy":           ("קנייה",        "#4ade80"),
+        "hold":          ("נייטרלי",      AMB),
+        "underperform":  ("מכירה",        "#fb923c"),
+        "sell":          ("מכירה",        RED),
+        "strong_sell":   ("מכירה חזקה",  RED),
+    }.get(rec, (rec, TX2))
+
+
 def page_screener():
     st.markdown(f"""<div style="direction:rtl;padding-bottom:14px;border-bottom:1px solid {BDR2};margin-bottom:14px;">
         <div style="font-size:1.5rem;font-weight:800;color:{TX};letter-spacing:-.02em;">
-            סורק טכני
+            סורק מניות
         </div>
         <div style="color:{TX2};font-size:.83rem;margin-top:4px;">
-            סנן {len(DEEP_SCAN_UNIVERSE)} מניות לפי קריטריונים טכניים בזמן אמת
+            סורק טכני + המלצות אנליסטים — {len(DEEP_SCAN_UNIVERSE)} מניות
         </div>
     </div>""", unsafe_allow_html=True)
 
-    fc1, fc2, fc3, fc4 = st.columns(4)
-    with fc1:
-        rsi_min, rsi_max = st.slider("טווח RSI", 0, 100, (0, 45), key="sc_rsi")
-    with fc2:
-        ma_filter = st.selectbox("מול MA50", ["הכל", "מעל MA50", "מתחת MA50"], key="sc_ma")
-    with fc3:
-        all_sectors = ["הכל"] + sorted({s.get("s", s.get("c", "אחר")) for s in DEEP_SCAN_UNIVERSE})
-        sector_filter = st.selectbox("סקטור", all_sectors, key="sc_sec")
-    with fc4:
-        sort_by = st.selectbox("מיין לפי", ["RSI נמוך → גבוה", "RSI גבוה → נמוך", "שינוי יומי"], key="sc_sort")
+    tab_tech, tab_analyst = st.tabs(["📉 סורק טכני", "📊 המלצות אנליסטים"])
 
-    run_col, _ = st.columns([1, 4])
-    with run_col:
-        if st.button("🔍 הרץ סריקה", key="sc_run", type="primary", use_container_width=True):
-            st.session_state["sc_results"] = None
-            st.session_state["sc_running"] = True
-            st.rerun()
+    # ── Tab 1: Technical screener ─────────────────────────────────────────────
+    with tab_tech:
+        fc1, fc2, fc3, fc4 = st.columns(4)
+        with fc1:
+            rsi_min, rsi_max = st.slider("טווח RSI", 0, 100, (0, 45), key="sc_rsi")
+        with fc2:
+            ma_filter = st.selectbox("מול MA50", ["הכל", "מעל MA50", "מתחת MA50"], key="sc_ma")
+        with fc3:
+            all_sectors = ["הכל"] + sorted({s.get("s", s.get("c", "אחר")) for s in DEEP_SCAN_UNIVERSE})
+            sector_filter = st.selectbox("סקטור", all_sectors, key="sc_sec")
+        with fc4:
+            sort_by = st.selectbox("מיין לפי", ["RSI נמוך → גבוה", "RSI גבוה → נמוך", "שינוי יומי"], key="sc_sort")
 
-    if not st.session_state.get("sc_running") and st.session_state.get("sc_results") is None:
-        st.markdown(f"""<div style="text-align:center;padding:60px 0;color:{TX2};direction:rtl;">
-            <div style="font-size:3rem;margin-bottom:12px;">🔍</div>
-            <div style="font-size:.95rem;">הגדר פילטרים ולחץ "הרץ סריקה"</div>
-        </div>""", unsafe_allow_html=True)
-        return
-
-    candidates = [s for s in DEEP_SCAN_UNIVERSE
-                  if sector_filter == "הכל" or s.get("s", s.get("c", "")) == sector_filter]
-
-    if st.session_state.get("sc_running"):
-        with st.spinner(f"סורק {len(candidates)} מניות בזמן אמת..."):
-            def _scan_one(stock):
-                try:
-                    q = _agent_quote(stock["t"])
-                    if not q or q.get("rsi") is None:
-                        return None
-                    rsi   = q["rsi"]
-                    price = q.get("price", 0)
-                    ma50  = q.get("ma50")
-                    if not (rsi_min <= rsi <= rsi_max):
-                        return None
-                    if ma_filter == "מעל MA50" and (not ma50 or price < ma50):
-                        return None
-                    if ma_filter == "מתחת MA50" and (not ma50 or price >= ma50):
-                        return None
-                    return {**stock, **q}
-                except Exception:
-                    return None
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=14) as ex:
-                raw = list(ex.map(_scan_one, candidates))
-            st.session_state["sc_results"] = [r for r in raw if r]
-            st.session_state["sc_running"]  = False
-            st.rerun()
-
-    results = st.session_state.get("sc_results") or []
-    if not results:
-        st.warning("לא נמצאו מניות התואמות את הפילטרים. נסה להרחיב את הקריטריונים.")
-        return
-
-    if sort_by == "RSI נמוך → גבוה":
-        results = sorted(results, key=lambda x: x.get("rsi", 99))
-    elif sort_by == "RSI גבוה → נמוך":
-        results = sorted(results, key=lambda x: x.get("rsi", 0), reverse=True)
-    else:
-        results = sorted(results, key=lambda x: x.get("chg", 0), reverse=True)
-
-    st.markdown(f"""<div style="color:{GRN};font-size:.85rem;direction:rtl;margin-bottom:14px;">
-        ✅ נמצאו <b>{len(results)}</b> מניות
-    </div>""", unsafe_allow_html=True)
-
-    cols = st.columns(3)
-    for i, r in enumerate(results):
-        with cols[i % 3]:
-            rsi_v = r.get("rsi", 50)
-            price = r.get("price", 0)
-            chg   = r.get("chg", 0)
-            ma50  = r.get("ma50")
-            chg_c = GRN if chg >= 0 else RED
-            rsi_c = GRN if rsi_v < 35 else AMB if rsi_v < 60 else RED
-            above_ma = ma50 and price > ma50
-
-            st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
-                border-radius:8px;padding:16px;margin-bottom:12px;direction:rtl;
-                border-top:3px solid {rsi_c};">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                    <div>
-                        <div style="font-size:1.1rem;font-weight:800;color:{CYAN};">{r['t']}</div>
-                        <div style="font-size:.75rem;color:{TX2};margin-top:2px;">{r.get('n','')}</div>
-                        <div style="font-size:.66rem;color:{TX3};margin-top:4px;
-                            background:{SURF};border-radius:6px;padding:2px 7px;display:inline-block;">
-                            {r.get('s', r.get('c',''))}
-                        </div>
-                    </div>
-                    <div style="text-align:left;">
-                        <div style="font-size:1rem;font-weight:700;color:{TX};">${price:,.2f}</div>
-                        <div style="font-size:.78rem;color:{chg_c};">{'▲' if chg>=0 else '▼'} {abs(chg):.1f}%</div>
-                    </div>
-                </div>
-                <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-                    <div style="background:{rsi_c}22;border:1px solid {rsi_c}55;
-                        border-radius:8px;padding:4px 10px;font-size:.76rem;">
-                        <span style="color:{TX3};">RSI </span>
-                        <span style="color:{rsi_c};font-weight:700;">{rsi_v:.0f}</span>
-                    </div>
-                    <div style="background:{''+GRN+'22;border:1px solid '+GRN+'44;color:'+GRN if above_ma else RED+'22;border:1px solid '+RED+'44;color:'+RED};
-                        border-radius:8px;padding:4px 10px;font-size:.74rem;">
-                        {'מעל MA50' if above_ma else 'מתחת MA50'}
-                    </div>
-                </div>
-                {'<div style="margin-top:8px;font-size:.74rem;color:'+TX2+';line-height:1.5;">'+r.get("u","")[:90]+'</div>' if r.get("u") else ""}
-            </div>""", unsafe_allow_html=True)
-
-            if st.button(f"📊 נתח {r['t']}", key=f"sc_go_{r['t']}_{i}",
-                         use_container_width=True):
-                st.session_state["search_ticker"] = r["t"]
-                st.session_state["page"] = "home"
+        run_col, _ = st.columns([1, 4])
+        with run_col:
+            if st.button("🔍 הרץ סריקה", key="sc_run", type="primary", use_container_width=True):
+                st.session_state["sc_results"] = None
+                st.session_state["sc_running"] = True
                 st.rerun()
+
+        if not st.session_state.get("sc_running") and st.session_state.get("sc_results") is None:
+            st.markdown(f"""<div style="text-align:center;padding:60px 0;color:{TX2};direction:rtl;">
+                <div style="font-size:3rem;margin-bottom:12px;">🔍</div>
+                <div style="font-size:.95rem;">הגדר פילטרים ולחץ "הרץ סריקה"</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            candidates = [s for s in DEEP_SCAN_UNIVERSE
+                          if sector_filter == "הכל" or s.get("s", s.get("c", "")) == sector_filter]
+
+            if st.session_state.get("sc_running"):
+                with st.spinner(f"סורק {len(candidates)} מניות בזמן אמת..."):
+                    def _scan_one(stock):
+                        try:
+                            q = _agent_quote(stock["t"])
+                            if not q or q.get("rsi") is None:
+                                return None
+                            rsi   = q["rsi"]
+                            price = q.get("price", 0)
+                            ma50  = q.get("ma50")
+                            if not (rsi_min <= rsi <= rsi_max):
+                                return None
+                            if ma_filter == "מעל MA50" and (not ma50 or price < ma50):
+                                return None
+                            if ma_filter == "מתחת MA50" and (not ma50 or price >= ma50):
+                                return None
+                            return {**stock, **q}
+                        except Exception:
+                            return None
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=14) as ex:
+                        raw = list(ex.map(_scan_one, candidates))
+                    st.session_state["sc_results"] = [r for r in raw if r]
+                    st.session_state["sc_running"]  = False
+                    st.rerun()
+
+            results = st.session_state.get("sc_results") or []
+            if not results:
+                st.warning("לא נמצאו מניות התואמות את הפילטרים. נסה להרחיב את הקריטריונים.")
+            else:
+                if sort_by == "RSI נמוך → גבוה":
+                    results = sorted(results, key=lambda x: x.get("rsi", 99))
+                elif sort_by == "RSI גבוה → נמוך":
+                    results = sorted(results, key=lambda x: x.get("rsi", 0), reverse=True)
+                else:
+                    results = sorted(results, key=lambda x: x.get("chg", 0), reverse=True)
+
+                st.markdown(f"""<div style="color:{GRN};font-size:.85rem;direction:rtl;margin-bottom:14px;">
+                    ✅ נמצאו <b>{len(results)}</b> מניות
+                </div>""", unsafe_allow_html=True)
+
+                cols = st.columns(3)
+                for i, r in enumerate(results):
+                    with cols[i % 3]:
+                        rsi_v = r.get("rsi", 50)
+                        price = r.get("price", 0)
+                        chg   = r.get("chg", 0)
+                        ma50  = r.get("ma50")
+                        chg_c = GRN if chg >= 0 else RED
+                        rsi_c = GRN if rsi_v < 35 else AMB if rsi_v < 60 else RED
+                        above_ma = ma50 and price > ma50
+
+                        st.markdown(f"""<div style="background:{SURF2};border:1px solid {BDR};
+                            border-radius:8px;padding:16px;margin-bottom:12px;direction:rtl;
+                            border-top:3px solid {rsi_c};">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                                <div>
+                                    <div style="font-size:1.1rem;font-weight:800;color:{CYAN};">{r['t']}</div>
+                                    <div style="font-size:.75rem;color:{TX2};margin-top:2px;">{r.get('n','')}</div>
+                                    <div style="font-size:.66rem;color:{TX3};margin-top:4px;
+                                        background:{SURF};border-radius:6px;padding:2px 7px;display:inline-block;">
+                                        {r.get('s', r.get('c',''))}
+                                    </div>
+                                </div>
+                                <div style="text-align:left;">
+                                    <div style="font-size:1rem;font-weight:700;color:{TX};">${price:,.2f}</div>
+                                    <div style="font-size:.78rem;color:{chg_c};">{'▲' if chg>=0 else '▼'} {abs(chg):.1f}%</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                                <div style="background:{rsi_c}22;border:1px solid {rsi_c}55;
+                                    border-radius:8px;padding:4px 10px;font-size:.76rem;">
+                                    <span style="color:{TX3};">RSI </span>
+                                    <span style="color:{rsi_c};font-weight:700;">{rsi_v:.0f}</span>
+                                </div>
+                                <div style="background:{''+GRN+'22;border:1px solid '+GRN+'44;color:'+GRN if above_ma else RED+'22;border:1px solid '+RED+'44;color:'+RED};
+                                    border-radius:8px;padding:4px 10px;font-size:.74rem;">
+                                    {'מעל MA50' if above_ma else 'מתחת MA50'}
+                                </div>
+                            </div>
+                            {'<div style="margin-top:8px;font-size:.74rem;color:'+TX2+';line-height:1.5;">'+r.get("u","")[:90]+'</div>' if r.get("u") else ""}
+                        </div>""", unsafe_allow_html=True)
+
+                        if st.button(f"📊 נתח {r['t']}", key=f"sc_go_{r['t']}_{i}",
+                                     use_container_width=True):
+                            st.session_state["search_ticker"] = r["t"]
+                            st.session_state["page"] = "home"
+                            st.rerun()
+
+    # ── Tab 2: Analyst recommendations ───────────────────────────────────────
+    with tab_analyst:
+        REC_CATS = [
+            ("all",          "⭐ הכל",         TX2,  None),
+            ("strong_buy",   "🟢 קנייה חזקה",  GRN,  GRN),
+            ("buy",          "🟩 קנייה",        "#4ade80", "#4ade80"),
+            ("hold",         "🟡 נייטרלי",      AMB,  AMB),
+            ("underperform", "🟠 מכירה",        "#fb923c", "#fb923c"),
+            ("strong_sell",  "🔴 מכירה חזקה",  RED,  RED),
+        ]
+
+        st.markdown(f"""<div style="color:{TX2};font-size:.82rem;direction:rtl;margin-bottom:14px;">
+            סורק המלצות אנליסטים מ-Wall Street עבור כל המניות ביקום — נתונים מ-yfinance (עד 30 דקות cache)
+        </div>""", unsafe_allow_html=True)
+
+        rc1, rc2, _ = st.columns([1.2, 1.2, 5])
+        with rc1:
+            if st.button("🔄 סרוק המלצות", key="rec_run", type="primary", use_container_width=True):
+                st.cache_data.clear()
+                st.session_state["rec_running"] = True
+                st.session_state["rec_results"] = None
+                st.rerun()
+        with rc2:
+            rec_sort = st.selectbox("מיין לפי", ["קנייה חזקה ראשון", "מחיר יעד vs מחיר נוכחי", "מספר אנליסטים"], key="rec_sort_sel", label_visibility="collapsed")
+
+        # Category filter pills
+        cur_cat = st.session_state.get("rec_cat_filter", "all")
+        pill_cols = st.columns(len(REC_CATS))
+        for ci, (cat_id, cat_lbl, cat_c, _) in enumerate(REC_CATS):
+            with pill_cols[ci]:
+                is_active = (cur_cat == cat_id)
+                btn_style = "primary" if is_active else "secondary"
+                if st.button(cat_lbl, key=f"rec_cat_{cat_id}", type=btn_style, use_container_width=True):
+                    st.session_state["rec_cat_filter"] = cat_id
+                    st.rerun()
+
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+        # Initial state — show prompt
+        if not st.session_state.get("rec_running") and st.session_state.get("rec_results") is None:
+            st.markdown(f"""<div style="text-align:center;padding:60px 0;color:{TX2};direction:rtl;">
+                <div style="font-size:3rem;margin-bottom:12px;">📊</div>
+                <div style="font-size:.95rem;">לחץ "סרוק המלצות" כדי לקבל המלצות אנליסטים מעודכנות</div>
+                <div style="font-size:.78rem;color:{TX3};margin-top:8px;">הסריקה עשויה לקחת ~20 שניות</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            # Run the scan
+            if st.session_state.get("rec_running"):
+                progress_bar = st.progress(0, text="טוען המלצות אנליסטים...")
+                all_syms = [s["t"] for s in DEEP_SCAN_UNIVERSE]
+
+                def _fetch_rec_one(sym):
+                    return _fetch_analyst_rec(sym)
+
+                raw_recs = []
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+                    futures = {ex.submit(_fetch_rec_one, sym): sym for sym in all_syms}
+                    done = 0
+                    for fut in concurrent.futures.as_completed(futures):
+                        done += 1
+                        progress_bar.progress(done / len(all_syms),
+                                              text=f"טוען {done}/{len(all_syms)}...")
+                        res = fut.result()
+                        if res:
+                            raw_recs.append(res)
+
+                progress_bar.empty()
+                st.session_state["rec_results"] = raw_recs
+                st.session_state["rec_running"] = False
+                st.rerun()
+
+            # Display results
+            rec_data = st.session_state.get("rec_results") or []
+            cat_filter = st.session_state.get("rec_cat_filter", "all")
+
+            if cat_filter != "all":
+                filtered = [r for r in rec_data
+                            if r["rec"] == cat_filter or
+                               (cat_filter == "underperform" and r["rec"] in ("underperform", "sell"))]
+            else:
+                filtered = rec_data
+
+            # Sort
+            REC_ORDER = {"strong_buy": 0, "buy": 1, "hold": 2, "underperform": 3, "sell": 3, "strong_sell": 4}
+            if rec_sort == "קנייה חזקה ראשון":
+                filtered = sorted(filtered, key=lambda x: (REC_ORDER.get(x["rec"], 9), -(x["analysts"] or 0)))
+            elif rec_sort == "מחיר יעד vs מחיר נוכחי":
+                def _upside(r):
+                    if r.get("target") and r.get("price") and r["price"] > 0:
+                        return (r["target"] - r["price"]) / r["price"]
+                    return -99
+                filtered = sorted(filtered, key=_upside, reverse=True)
+            else:
+                filtered = sorted(filtered, key=lambda x: -(x.get("analysts") or 0))
+
+            if not filtered:
+                st.warning("לא נמצאו מניות עם המלצה זו. נסה קטגוריה אחרת.")
+            else:
+                # Summary bar
+                counts = {}
+                for r in rec_data:
+                    k = r["rec"]
+                    counts[k] = counts.get(k, 0) + 1
+                sb_parts = []
+                for cat_id, cat_lbl, cat_c, _ in REC_CATS[1:]:
+                    n = counts.get(cat_id, 0) + (counts.get("sell", 0) if cat_id == "underperform" else 0)
+                    if n > 0:
+                        sb_parts.append(
+                            f'<span style="color:{cat_c};font-weight:700;">{cat_lbl.split(" ",1)[1]}: {n}</span>'
+                        )
+                st.markdown(
+                    f'<div style="direction:rtl;font-size:.82rem;color:{TX2};margin-bottom:16px;">'
+                    f'סה״כ {len(rec_data)} מניות עם המלצה · '
+                    + " &nbsp;|&nbsp; ".join(sb_parts) +
+                    f'</div>', unsafe_allow_html=True)
+
+                st.markdown(
+                    f'<div style="color:{TX2};font-size:.8rem;direction:rtl;margin-bottom:10px;">'
+                    f'מציג <b style="color:{TX};">{len(filtered)}</b> מניות</div>',
+                    unsafe_allow_html=True)
+
+                # Table header
+                hcols = st.columns([0.8, 2, 1.2, 1, 1, 1.2, 0.8])
+                for col, lbl in zip(hcols, ["סמול","שם","המלצה","מחיר","שינוי","יעד אנליסטים","ניתוח"]):
+                    col.markdown(
+                        f"<div style='color:{TX3};font-size:.72rem;font-weight:700;"
+                        f"direction:rtl;padding-bottom:6px;border-bottom:1px solid {BDR};'>{lbl}</div>",
+                        unsafe_allow_html=True)
+
+                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+                for ri, r in enumerate(filtered[:60]):
+                    rec_lbl, rec_c = _rec_label_he(r["rec"])
+                    price  = r.get("price") or 0
+                    chg    = r.get("chg") or 0
+                    target = r.get("target")
+                    chg_c  = GRN if chg >= 0 else RED
+                    n_anal = r.get("analysts") or 0
+                    upside_s = ""
+                    if target and price > 0:
+                        pct = (target - price) / price * 100
+                        upc = GRN if pct > 0 else RED
+                        upside_s = f"${target:,.0f} <span style='color:{upc};font-size:.72rem;'>({pct:+.0f}%)</span>"
+                    else:
+                        upside_s = "—"
+
+                    bg = SURF if ri % 2 == 0 else SURF2
+                    row_cols = st.columns([0.8, 2, 1.2, 1, 1, 1.2, 0.8])
+                    with row_cols[0]:
+                        st.markdown(
+                            f"<div style='padding:10px 4px;background:{bg};direction:rtl;'>"
+                            f"<b style='color:{CYAN};font-size:.9rem;'>{r['sym']}</b></div>",
+                            unsafe_allow_html=True)
+                    with row_cols[1]:
+                        st.markdown(
+                            f"<div style='padding:10px 4px;background:{bg};direction:rtl;"
+                            f"font-size:.78rem;color:{TX2};'>{r.get('name','')[:28]}</div>",
+                            unsafe_allow_html=True)
+                    with row_cols[2]:
+                        st.markdown(
+                            f"<div style='padding:10px 4px;background:{bg};direction:rtl;'>"
+                            f"<span style='background:{rec_c}22;color:{rec_c};font-size:.76rem;"
+                            f"font-weight:700;padding:3px 10px;border-radius:6px;"
+                            f"border:1px solid {rec_c}44;'>{rec_lbl}</span>"
+                            f"<div style='font-size:.67rem;color:{TX3};margin-top:3px;'>"
+                            f"{n_anal} אנליסטים</div></div>",
+                            unsafe_allow_html=True)
+                    with row_cols[3]:
+                        st.markdown(
+                            f"<div style='padding:10px 4px;background:{bg};font-weight:700;"
+                            f"color:{TX};font-size:.88rem;'>${price:,.2f}</div>",
+                            unsafe_allow_html=True)
+                    with row_cols[4]:
+                        st.markdown(
+                            f"<div style='padding:10px 4px;background:{bg};color:{chg_c};"
+                            f"font-weight:600;font-size:.84rem;'>"
+                            f"{'▲' if chg>=0 else '▼'} {abs(chg):.1f}%</div>",
+                            unsafe_allow_html=True)
+                    with row_cols[5]:
+                        st.markdown(
+                            f"<div style='padding:10px 4px;background:{bg};font-size:.82rem;"
+                            f"color:{TX};'>{upside_s}</div>",
+                            unsafe_allow_html=True)
+                    with row_cols[6]:
+                        if st.button("📊", key=f"rec_go_{r['sym']}_{ri}", help=f"נתח {r['sym']}",
+                                     use_container_width=True):
+                            st.session_state["search_ticker"] = r["sym"]
+                            st.session_state["page"] = "home"
+                            st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
