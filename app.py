@@ -670,9 +670,9 @@ def save_json(path, data):
 # ══════════════════════════════════════════════════════════════════════════════
 # AGENT SYSTEM — state, notifications, worker threads
 # ══════════════════════════════════════════════════════════════════════════════
-AGENT_STATE_FILE  = "agent_state.json"
-NOTIFICATIONS_FILE= "notifications.json"
-AGENT_LOGS_FILE   = "agent_logs.json"
+AGENT_STATE_FILE  = os.path.join(DATA_DIR, "agent_state.json")
+NOTIFICATIONS_FILE= os.path.join(DATA_DIR, "notifications.json")
+AGENT_LOGS_FILE   = os.path.join(DATA_DIR, "agent_logs.json")
 
 _agent_threads: dict = {}
 _agent_lock = threading.Lock()
@@ -690,8 +690,11 @@ def _load_agent_state() -> dict:
 
 def _save_agent_state(state: dict):
     with _agent_lock:
-        with open(AGENT_STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(state, f, ensure_ascii=False, indent=2)
+        try:
+            with open(AGENT_STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
 def _load_notifications() -> list:
     try:
@@ -708,13 +711,19 @@ def _mark_all_read():
         notifs = _load_notifications()
         for n in notifs:
             n["read"] = True
-        with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
-            json.dump(notifs, f, ensure_ascii=False, indent=2)
+        try:
+            with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
+                json.dump(notifs, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
 def _clear_notifications():
     with _agent_lock:
-        with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
-            json.dump([], f)
+        try:
+            with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
+                json.dump([], f)
+        except Exception:
+            pass
 
 def _add_notification(agent: str, title: str, body: str, level: str = "info",
                       key: str = "", extra=None):
@@ -738,8 +747,11 @@ def _add_notification(agent: str, title: str, body: str, level: str = "info",
         if extra:
             entry.update(extra)
         notifs.insert(0, entry)
-        with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
-            json.dump(notifs[:200], f, ensure_ascii=False, indent=2)
+        try:
+            with open(NOTIFICATIONS_FILE, "w", encoding="utf-8") as f:
+                json.dump(notifs[:200], f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
 def _add_log(agent: str, message: str):
     with _agent_lock:
@@ -753,8 +765,11 @@ def _add_log(agent: str, message: str):
             "agent":   agent,
             "message": message,
         })
-        with open(AGENT_LOGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(logs[:500], f, ensure_ascii=False, indent=2)
+        try:
+            with open(AGENT_LOGS_FILE, "w", encoding="utf-8") as f:
+                json.dump(logs[:500], f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
 def _should_notify(key: str, hours: float = 6) -> bool:
     cutoff = time.time() - hours * 3600
